@@ -149,11 +149,75 @@ public static class Program
     public static readonly Color Brand      = Color.FromArgb(72, 120, 48);    // asosiy yashil
     public static readonly Color BrandDark  = Color.FromArgb(44, 82, 32);
     public static readonly Color BrandLight = Color.FromArgb(122, 170, 80);
-    public static readonly Color BrandPale  = Color.FromArgb(242, 247, 238);  // och fon
     public static readonly Color OkGreen    = Color.FromArgb(88, 150, 56);
     public static readonly Color OffGray    = Color.FromArgb(150, 155, 148);
-    public static readonly Color Ink        = Color.FromArgb(38, 46, 34);
-    public static readonly Color Muted      = Color.FromArgb(108, 118, 104);
+
+    // ---------- Mavzuga bog'liq ranglar (yorug' / qorong'i) ----------
+    // Windows mavzusiga qarab avtomatik tanlanadi.
+    public static bool  DarkMode    = false;
+    public static Color Surface     = Color.White;                       // oyna foni
+    public static Color BrandPale   = Color.FromArgb(242, 247, 238);     // sarlavha foni
+    public static Color CardBorder  = Color.FromArgb(205, 224, 196);
+    public static Color Ink         = Color.FromArgb(38, 46, 34);        // asosiy matn
+    public static Color Muted       = Color.FromArgb(108, 118, 104);     // ikkilamchi matn
+    public static Color HeadTitle   = Color.FromArgb(44, 82, 32);        // sarlavha matni
+    public static Color AccentText  = Color.FromArgb(72, 120, 48);       // qoidalardagi harflar
+    public static Color PrivBg      = Color.FromArgb(240, 253, 244);
+    public static Color PrivBorder  = Color.FromArgb(187, 247, 208);
+    public static Color PrivTitle   = Color.FromArgb(21, 128, 61);
+    public static Color PrivText    = Color.FromArgb(22, 101, 52);
+
+    // Windows'da qorong'i mavzu yoqilganmi?
+    static bool SystemUsesDarkTheme()
+    {
+        try
+        {
+            using (RegistryKey k = Registry.CurrentUser.OpenSubKey(
+                @"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"))
+            {
+                if (k == null) return false;
+                object v = k.GetValue("AppsUseLightTheme");
+                if (v == null) return false;
+                return Convert.ToInt32(v) == 0;   // 0 = qorong'i
+            }
+        }
+        catch { return false; }
+    }
+
+    static void ApplyTheme()
+    {
+        DarkMode = SystemUsesDarkTheme();
+        if (!DarkMode) return;   // yorug' rejim — yuqoridagi qiymatlar qoladi
+
+        Surface    = Color.FromArgb(32, 34, 31);
+        BrandPale  = Color.FromArgb(40, 46, 38);
+        CardBorder = Color.FromArgb(64, 74, 60);
+        Ink        = Color.FromArgb(232, 236, 228);
+        Muted      = Color.FromArgb(158, 168, 152);
+        HeadTitle  = Color.FromArgb(168, 208, 130);
+        AccentText = Color.FromArgb(150, 196, 108);
+        PrivBg     = Color.FromArgb(34, 46, 36);
+        PrivBorder = Color.FromArgb(62, 92, 60);
+        PrivTitle  = Color.FromArgb(134, 214, 152);
+        PrivText   = Color.FromArgb(178, 222, 186);
+    }
+
+    // Oyna sarlavhasini ham qorong'i qilamiz (Windows 10 1809+ / 11)
+    [DllImport("dwmapi.dll")]
+    static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int value, int size);
+
+    static void ApplyDarkTitleBar(Form f)
+    {
+        if (!DarkMode) return;
+        try
+        {
+            int on = 1;
+            // 20 = DWMWA_USE_IMMERSIVE_DARK_MODE (yangi), 19 = eski quruvlar
+            if (DwmSetWindowAttribute(f.Handle, 20, ref on, 4) != 0)
+                DwmSetWindowAttribute(f.Handle, 19, ref on, 4);
+        }
+        catch { }
+    }
 
     // ---------- WinAPI ----------
     const int WH_KEYBOARD_LL = 13;
@@ -295,6 +359,7 @@ public static class Program
         try { SetProcessDPIAware(); } catch { }
         Application.EnableVisualStyles();
         Application.SetCompatibleTextRenderingDefault(false);
+        ApplyTheme();      // Windows yorug'/qorong'i mavzusiga moslashamiz
 
         // --- O'chirish rejimi ---
         if (doUninstall) { RunUninstall(); return; }
@@ -325,6 +390,8 @@ public static class Program
         }
 
         Application.ThreadException += delegate (object s, ThreadExceptionEventArgs e) { ShowError(e.Exception); };
+        AppDomain.CurrentDomain.UnhandledException += delegate (object s, UnhandledExceptionEventArgs e)
+        { LogError(e.ExceptionObject as Exception); };
 
         LoadSettings();
         enabled = startEnabled;
@@ -358,8 +425,55 @@ public static class Program
 
     static void ShowError(Exception ex)
     {
-        try { MessageBox.Show("Kutilmagan xatolik:\n\n" + (ex == null ? "?" : ex.Message),
-                              AppName, MessageBoxButtons.OK, MessageBoxIcon.Error); } catch { }
+        LogError(ex);
+        try
+        {
+            MessageBox.Show(
+                "Kutilmagan xatolik yuz berdi:\n\n" + (ex == null ? "?" : ex.Message) +
+                "\n\nTafsilotlar quyidagi faylga yozildi:\n" + ErrorLogPath +
+                "\n\nShu faylni " + SupportEmail + " manziliga yuborsangiz,\n" +
+                "muammoni tezroq hal qilamiz.",
+                AppName, MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+        catch { }
+    }
+
+    // Xatolar jurnali — foydalanuvchi yordam so'raganda sababni aniqlash uchun.
+    // Bu yerga FAQAT texnik xato ma'lumoti yoziladi, yozgan matningiz EMAS.
+    public static string ErrorLogPath
+    {
+        get
+        {
+            try { return Path.Combine(Path.GetTempPath(), "YangiAlif-xatolar.txt"); }
+            catch { return "YangiAlif-xatolar.txt"; }
+        }
+    }
+
+    static void LogError(Exception ex)
+    {
+        if (ex == null) return;
+        try
+        {
+            string txt =
+                "==================================================\r\n" +
+                DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + "   " + AppName + " " + AppVer + "\r\n" +
+                "Windows: " + Environment.OSVersion.VersionString +
+                "   (" + (IntPtr.Size == 8 ? "64-bit" : "32-bit") + ")\r\n" +
+                ".NET: " + Environment.Version + "\r\n" +
+                "--------------------------------------------------\r\n" +
+                ex.ToString() + "\r\n\r\n";
+
+            // Jurnal cheksiz o'smasin
+            try
+            {
+                FileInfo fi = new FileInfo(ErrorLogPath);
+                if (fi.Exists && fi.Length > 256 * 1024) fi.Delete();
+            }
+            catch { }
+
+            File.AppendAllText(ErrorLogPath, txt);
+        }
+        catch { }
     }
 
     // ============================================================
@@ -431,7 +545,7 @@ public static class Program
             try
             {
                 DoInstall(cbAuto.Checked, cbDesk.Checked);
-                status.ForeColor = Color.FromArgb(21, 128, 61);
+                status.ForeColor = PrivTitle;
                 status.Text = "Tayyor! Dastur ishga tushmoqda...";
                 Application.DoEvents();
                 System.Threading.Thread.Sleep(700);
@@ -450,7 +564,7 @@ public static class Program
                            "Administrator huquqi talab qilinmaydi. Istalgan vaqtda o'chirish mumkin.",
                            0, 306, 470, 40, 8.5F, FontStyle.Regular, Muted));
         c.Controls.Add(Lbl("© " + AppAuthor + ". Mualliflik huquqi himoyalangan.",
-                           0, 344, 470, 20, 8F, FontStyle.Regular, Color.FromArgb(160, 174, 192)));
+                           0, 344, 470, 20, 8F, FontStyle.Regular, Muted));
 
         Application.Run(f);
     }
@@ -1033,8 +1147,10 @@ public static class Program
         f.AutoScaleMode = AutoScaleMode.Font;
         f.Font = new Font("Segoe UI", 9.5F);
         f.ClientSize = new Size(w, h);
-        f.BackColor = Color.White;
+        f.BackColor = Surface;
+        f.ForeColor = Ink;
         if (onIcon != null) f.Icon = onIcon;
+        f.HandleCreated += delegate { ApplyDarkTitleBar(f); };
 
         Panel head = new Panel();
         head.Dock = DockStyle.Top;
@@ -1048,7 +1164,7 @@ public static class Program
             // Och yashil fon — logotip aynan shunday fonda yaratilgan
             using (Brush b = new SolidBrush(BrandPale))
                 g.FillRectangle(b, 0, 0, head.Width, head.Height);
-            using (Pen p = new Pen(Color.FromArgb(214, 228, 206)))
+            using (Pen p = new Pen(CardBorder))
                 g.DrawLine(p, 0, head.Height - 1, head.Width, head.Height - 1);
 
             // Logotip (ichida "YANGI ALIF" yozuvi bor — takrorlamaymiz)
@@ -1056,7 +1172,7 @@ public static class Program
 
             using (Font f1 = new Font("Segoe UI", 11.5F, FontStyle.Bold))
             using (Font f2 = new Font("Segoe UI", 8.5F))
-            using (Brush ib = new SolidBrush(BrandDark))
+            using (Brush ib = new SolidBrush(HeadTitle))
             using (Brush mb = new SolidBrush(Muted))
             {
                 g.DrawString(title, f1, ib, 116, 34);
@@ -1101,14 +1217,14 @@ public static class Program
         {
             e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
             e.Graphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
-            using (Pen pen = new Pen(Color.FromArgb(205, 224, 196)))
+            using (Pen pen = new Pen(CardBorder))
                 e.Graphics.DrawRectangle(pen, 0, 0, p.Width - 1, p.Height - 1);
 
             string[,] rules = { { "o'", "ö" }, { "g'", "ğ" }, { "sh", "ş" }, { "ch", "ç" } };
             using (Font fb = new Font("Segoe UI", 13F, FontStyle.Bold))
             using (Font fa = new Font("Segoe UI", 11F))
             using (Brush ink = new SolidBrush(Ink))
-            using (Brush br = new SolidBrush(Brand))
+            using (Brush br = new SolidBrush(AccentText))
             using (Brush mu = new SolidBrush(Muted))
             {
                 int cw = p.Width / 4;
@@ -1188,7 +1304,7 @@ public static class Program
 
         c.Controls.Add(Lbl("© " + AppAuthor + ". Mualliflik huquqi himoyalangan.   " +
                            "Maxfiylik: yozganlaringiz saqlanmaydi.",
-                           0, 360, 470, 20, 8F, FontStyle.Regular, Color.FromArgb(160, 174, 192)));
+                           0, 360, 470, 20, 8F, FontStyle.Regular, Muted));
 
         f.Show(); f.Activate();
     }
@@ -1213,26 +1329,26 @@ public static class Program
         c.BringToFront();
 
         int y = 6;
-        c.Controls.Add(Lbl("ALMASHTIRISH QOIDALARI", 0, y, 400, 20, 8.5F, FontStyle.Bold, Brand)); y += 26;
+        c.Controls.Add(Lbl("ALMASHTIRISH QOIDALARI", 0, y, 400, 20, 8.5F, FontStyle.Bold, AccentText)); y += 26;
 
         CheckBox cbOG = Chk("o'  →  ö        va        g'  →  ğ", ruleOG, y); c.Controls.Add(cbOG); y += 28;
         CheckBox cbSh = Chk("sh  →  ş        va        ch  →  ç", ruleShCh, y); c.Controls.Add(cbSh); y += 38;
 
-        c.Controls.Add(Lbl("ISHGA TUSHISH", 0, y, 400, 20, 8.5F, FontStyle.Bold, Brand)); y += 26;
+        c.Controls.Add(Lbl("ISHGA TUSHISH", 0, y, 400, 20, 8.5F, FontStyle.Bold, AccentText)); y += 26;
 
         CheckBox cbAuto = Chk("Kompyuter yonganda o'zi ishga tushsin", IsAutoStart(), y); c.Controls.Add(cbAuto); y += 28;
         CheckBox cbOn   = Chk("Ochilishi bilan darhol YOQILGAN bo'lsin", startEnabled, y); c.Controls.Add(cbOn); y += 38;
 
-        c.Controls.Add(Lbl("KO'RINISH", 0, y, 400, 20, 8.5F, FontStyle.Bold, Brand)); y += 26;
+        c.Controls.Add(Lbl("KO'RINISH", 0, y, 400, 20, 8.5F, FontStyle.Bold, AccentText)); y += 26;
 
         CheckBox cbToast = Chk("Yoqilganda ekranda bildirishnoma chiqsin", showToast, y); c.Controls.Add(cbToast); y += 28;
         CheckBox cbWel   = Chk("Ochilganda qo'llanma oynasi chiqsin", showWelcome, y); c.Controls.Add(cbWel); y += 36;
 
-        c.Controls.Add(Lbl("BU DASTURLARDA ISHLAMASIN", 0, y, 400, 20, 8.5F, FontStyle.Bold, Brand)); y += 24;
+        c.Controls.Add(Lbl("BU DASTURLARDA ISHLAMASIN", 0, y, 400, 20, 8.5F, FontStyle.Bold, AccentText)); y += 24;
         TextBox tbEx = new TextBox();
         tbEx.Text = excludedApps;
         tbEx.SetBounds(4, y, 404, 24);
-        tbEx.Font = new Font("Segoe UI", 9F);
+        tbEx.Font = new Font("Segoe UI", 9F); tbEx.BackColor = Surface; tbEx.ForeColor = Ink; tbEx.BorderStyle = BorderStyle.FixedSingle;
         c.Controls.Add(tbEx); y += 26;
         c.Controls.Add(Lbl("Masalan:  cmd, powershell, dota2   (vergul bilan ajrating)",
                            4, y, 404, 18, 8F, FontStyle.Regular, Muted)); y += 26;
@@ -1254,8 +1370,8 @@ public static class Program
         };
         Button no = new Button();
         no.Text = "Bekor"; no.SetBounds(196, 396, 90, 34);
-        no.FlatStyle = FlatStyle.Flat; no.BackColor = Color.White;
-        no.FlatAppearance.BorderColor = Color.FromArgb(203, 213, 225);
+        no.FlatStyle = FlatStyle.Flat; no.BackColor = Surface;
+        no.FlatAppearance.BorderColor = CardBorder;
         no.ForeColor = Muted; no.Cursor = Cursors.Hand;
         no.Click += delegate { f.Close(); };
         c.Controls.Add(ok); c.Controls.Add(no);
@@ -1294,18 +1410,18 @@ public static class Program
 
         Panel priv = new Panel();
         priv.SetBounds(0, 114, 386, 116);
-        priv.BackColor = Color.FromArgb(240, 253, 244);
+        priv.BackColor = PrivBg;
         priv.Paint += delegate (object s, PaintEventArgs e)
         {
-            using (Pen p = new Pen(Color.FromArgb(187, 247, 208)))
+            using (Pen p = new Pen(PrivBorder))
                 e.Graphics.DrawRectangle(p, 0, 0, priv.Width - 1, priv.Height - 1);
         };
-        priv.Controls.Add(Lbl("MAXFIYLIK KAFOLATI", 16, 12, 340, 20, 9F, FontStyle.Bold, Color.FromArgb(21, 128, 61)));
+        priv.Controls.Add(Lbl("MAXFIYLIK KAFOLATI", 16, 12, 340, 20, 9F, FontStyle.Bold, PrivTitle));
         priv.Controls.Add(Lbl("•  Yozganlaringiz saqlanmaydi\n" +
                               "•  Faylga yozilmaydi\n" +
                               "•  Internetga yuborilmaydi\n" +
                               "•  Dastur internetga umuman ulanmaydi",
-                              16, 34, 350, 74, 9.5F, FontStyle.Regular, Color.FromArgb(22, 101, 52)));
+                              16, 34, 350, 74, 9.5F, FontStyle.Regular, PrivText));
         c.Controls.Add(priv);
 
         // --- Qo'llab-quvvatlash aloqasi ---
