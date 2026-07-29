@@ -135,8 +135,7 @@ public class BrandCheck : CheckBox
     public BrandCheck()
     {
         SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint |
-                 ControlStyles.OptimizedDoubleBuffer | ControlStyles.SupportsTransparentBackColor, true);
-        BackColor = Color.Transparent;
+                 ControlStyles.OptimizedDoubleBuffer, true);
         Cursor = Cursors.Hand;
         MouseEnter += delegate { hover = true; Invalidate(); };
         MouseLeave += delegate { hover = false; Invalidate(); };
@@ -145,6 +144,14 @@ public class BrandCheck : CheckBox
     protected override void OnPaint(PaintEventArgs e)
     {
         Graphics g = e.Graphics;
+
+        // MUHIM: fonni O'ZIMIZ tozalaymiz. UserPaint yoqilganda Windows
+        // fonni tozalamaydi — busiz eski matn ustiga yangisi chizilib,
+        // harflar bir-biriga aralashib ketadi.
+        using (Brush bg = new SolidBrush(Parent != null && Parent.BackColor != Color.Transparent
+                                         ? Parent.BackColor : Program.Surface))
+            g.FillRectangle(bg, ClientRectangle);
+
         g.SmoothingMode = SmoothingMode.AntiAlias;
         g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
 
@@ -417,6 +424,8 @@ public static class Program
         Application.EnableVisualStyles();
         Application.SetCompatibleTextRenderingDefault(false);
         ApplyTheme();      // Windows yorug'/qorong'i mavzusiga moslashamiz
+        LoadLogo();        // MUHIM: o'rnatish oynasidan OLDIN — aks holda
+                           // sehrgarda logotip o'rniga zaxira belgi chiqadi
 
         // --- O'chirish rejimi ---
         if (doUninstall) { RunUninstall(); return; }
@@ -663,6 +672,10 @@ public static class Program
         else if (wizPage == 2) WizOptions();
         else if (wizPage == 3) WizInstalling();
         else                   WizDone();
+
+        // Sahifa almashganda eski chizmalar qolib ketmasin
+        wizBody.Invalidate(true);
+        wizBody.Update();
     }
 
     static void WizardNext()
@@ -1607,7 +1620,8 @@ public static class Program
         Panel c = new Panel();
         c.Dock = DockStyle.Fill;
         c.Padding = new Padding(PAD, 20, PAD, 22);
-        c.BackColor = Color.Transparent;
+        // Shaffof emas, aniq rang — shaffof panelda eski piksellar qolib ketadi
+        c.BackColor = Surface;
         f.Controls.Add(c);
         c.BringToFront();
         return c;
@@ -1619,7 +1633,7 @@ public static class Program
         l.Text = t; l.SetBounds(x, y, w, h);
         l.Font = new Font("Segoe UI", size, st);
         l.ForeColor = c;
-        l.BackColor = Color.Transparent;
+        // fon ota-elementdan olinadi (shaffoflik arvoh izlar qoldiradi)
         return l;
     }
 
@@ -1913,7 +1927,7 @@ public static class Program
         l.ActiveLinkColor = BrandDark;
         l.VisitedLinkColor = Brand;
         l.LinkBehavior = LinkBehavior.HoverUnderline;
-        l.BackColor = Color.Transparent;
+        // fon ota-elementdan olinadi (shaffoflik arvoh izlar qoldiradi)
         return l;
     }
 
@@ -1975,10 +1989,12 @@ public static class Program
     // Logotipni chizadi: yumaloq kvadrat + "A" + urg'u nuqtasi
     public static void DrawLogo(Graphics g, Rectangle r, bool on, bool small)
     {
-        // Logotip HAMMA joyda ishlatiladi. Tray'da holatni ko'rsatish uchun:
-        // yoqilganda — rangli, o'chirilganda — oqargan (kulrang) logotip.
+        // Logotip HAMMA joyda ishlatiladi — tray, oyna belgisi, sarlavha.
+        // Tray'da holatni ko'rsatish uchun: yoqilganda rangli,
+        // o'chirilganda oqargan (kulrang) logotip.
         if (customLogo != null)
         {
+            // (small — faqat zaxira belgi uchun ahamiyatli)
             g.InterpolationMode = InterpolationMode.HighQualityBicubic;
             if (on)
             {
