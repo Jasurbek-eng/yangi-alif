@@ -124,6 +124,63 @@ public class Toast : Form
 }
 
 // ============================================================
+//  Brend rangidagi katakcha (checkbox).
+//  Windows'ning standart ko'k katakchasi yashil brendimizga to'g'ri
+//  kelmaydi va qorong'i rejimda ham yomon ko'rinadi — o'zimiz chizamiz.
+// ============================================================
+public class BrandCheck : CheckBox
+{
+    bool hover = false;
+
+    public BrandCheck()
+    {
+        SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint |
+                 ControlStyles.OptimizedDoubleBuffer | ControlStyles.SupportsTransparentBackColor, true);
+        BackColor = Color.Transparent;
+        Cursor = Cursors.Hand;
+        MouseEnter += delegate { hover = true; Invalidate(); };
+        MouseLeave += delegate { hover = false; Invalidate(); };
+    }
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        Graphics g = e.Graphics;
+        g.SmoothingMode = SmoothingMode.AntiAlias;
+        g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
+
+        int box = 17;
+        int top = (Height - box) / 2;
+        Rectangle r = new Rectangle(0, top, box, box);
+
+        if (Checked)
+        {
+            using (Brush b = new SolidBrush(Program.Brand))
+                g.FillRectangle(b, r);
+            // Belgi (✓) — qo'lda chizamiz, shrift shartmas
+            using (Pen p = new Pen(Color.White, 2.1f))
+            {
+                p.StartCap = LineCap.Round; p.EndCap = LineCap.Round;
+                g.DrawLines(p, new Point[] {
+                    new Point(r.X + 4,  r.Y + 9),
+                    new Point(r.X + 7,  r.Y + 12),
+                    new Point(r.X + 13, r.Y + 5)
+                });
+            }
+        }
+        else
+        {
+            using (Brush b = new SolidBrush(Program.Surface))
+                g.FillRectangle(b, r);
+            using (Pen p = new Pen(hover ? Program.Brand : Program.CardBorder, 1.4f))
+                g.DrawRectangle(p, r.X, r.Y, r.Width - 1, r.Height - 1);
+        }
+
+        using (Brush tb = new SolidBrush(Enabled ? Program.Ink : Program.Muted))
+            g.DrawString(Text, Font, tb, box + 9, (Height - Font.Height) / 2f - 1);
+    }
+}
+
+// ============================================================
 public static class Program
 {
     // ---------- Mahsulot ----------
@@ -504,39 +561,41 @@ public static class Program
     // O'rnatish oynasi — sodda, bitta katta tugma
     static void ShowInstaller()
     {
-        Form f = BrandWindow("O'rnatish", 520, 474);
+        const int W = 560;
+        const int IN = W - PAD * 2;
+
+        Form f = BrandWindow("O'rnatish", W, 545);
         f.FormBorderStyle = FormBorderStyle.FixedDialog;
 
-        Panel c = new Panel();
-        c.Dock = DockStyle.Fill;
-        c.Padding = new Padding(26, 16, 26, 16);
-        f.Controls.Add(c); c.BringToFront();
+        Panel c = Content(f);
+        int y = 2;
 
-        c.Controls.Add(Lbl("Xush kelibsiz!", 0, 2, 460, 28, 14F, FontStyle.Bold, Ink));
+        c.Controls.Add(Lbl("Xush kelibsiz!", 0, y, IN, 30, 14F, FontStyle.Bold, Ink));       y += 32;
         c.Controls.Add(Lbl("Bu dastur yozayotganingizda harflarni avtomatik almashtiradi:",
-                           0, 32, 470, 22, 9.5F, FontStyle.Regular, Muted));
-        c.Controls.Add(RulesPanel(0, 58, 466));
+                           0, y, IN, 22, 9.5F, FontStyle.Regular, Muted));                    y += 28;
+        c.Controls.Add(RulesPanel(0, y, IN));                                                 y += 114;
 
-        CheckBox cbAuto = new CheckBox();
+        BrandCheck cbAuto = new BrandCheck();
         cbAuto.Text = "Kompyuter yonganda o'zi ishga tushsin";
         cbAuto.Checked = true;
-        cbAuto.SetBounds(2, 166, 440, 24);
-        cbAuto.ForeColor = Ink;
-        c.Controls.Add(cbAuto);
+        cbAuto.SetBounds(0, y, IN, 26);
+        cbAuto.Font = new Font("Segoe UI", 9.5F);
+        c.Controls.Add(cbAuto);                                                               y += 30;
 
-        CheckBox cbDesk = new CheckBox();
+        BrandCheck cbDesk = new BrandCheck();
         cbDesk.Text = "Ish stolida yorliq yaratilsin";
         cbDesk.Checked = true;
-        cbDesk.SetBounds(2, 192, 440, 24);
-        cbDesk.ForeColor = Ink;
-        c.Controls.Add(cbDesk);
+        cbDesk.SetBounds(0, y, IN, 26);
+        cbDesk.Font = new Font("Segoe UI", 9.5F);
+        c.Controls.Add(cbDesk);                                                               y += 34;
 
-        Label status = Lbl("", 2, 224, 460, 22, 9.5F, FontStyle.Regular, Brand);
-        c.Controls.Add(status);
+        Label status = Lbl("", 0, y, IN, 22, 9.5F, FontStyle.Regular, AccentText);
+        c.Controls.Add(status);                                                               y += 28;
 
-        Button install = PrimaryButton("O'RNATISH", 0, 252, 466);
-        install.Height = 46;
+        Button install = PrimaryButton("O'RNATISH", 0, y, IN);
+        install.Height = 48;
         install.Font = new Font("Segoe UI", 12F, FontStyle.Bold);
+        y += 62;
         install.Click += delegate
         {
             install.Enabled = false;
@@ -562,9 +621,10 @@ public static class Program
 
         c.Controls.Add(Lbl("Dastur faqat sizning foydalanuvchi papkangizga o'rnatiladi.\n" +
                            "Administrator huquqi talab qilinmaydi. Istalgan vaqtda o'chirish mumkin.",
-                           0, 306, 470, 40, 8.5F, FontStyle.Regular, Muted));
+                           0, y, IN, 42, 8.5F, FontStyle.Regular, Muted));
+        y += 44;
         c.Controls.Add(Lbl("© " + AppAuthor + ". Mualliflik huquqi himoyalangan.",
-                           0, 344, 470, 20, 8F, FontStyle.Regular, Muted));
+                           0, y, IN, 20, 8F, FontStyle.Regular, Muted));
 
         Application.Run(f);
     }
@@ -1215,6 +1275,20 @@ public static class Program
         return f;
     }
 
+    // Barcha oynalar uchun bir xil chekka bo'shliq — matn chetga yopishmasin
+    public const int PAD = 34;
+
+    static Panel Content(Form f)
+    {
+        Panel c = new Panel();
+        c.Dock = DockStyle.Fill;
+        c.Padding = new Padding(PAD, 20, PAD, 22);
+        c.BackColor = Color.Transparent;
+        f.Controls.Add(c);
+        c.BringToFront();
+        return c;
+    }
+
     static Label Lbl(string t, int x, int y, int w, int h, float size, FontStyle st, Color c)
     {
         Label l = new Label();
@@ -1284,48 +1358,46 @@ public static class Program
         if (welcomeForm != null && !welcomeForm.IsDisposed)
         { welcomeForm.Activate(); return; }
 
-        Form f = BrandWindow("Qo'llanma", 520, 508);
+        const int W = 560;                 // oyna kengligi
+        const int IN = W - PAD * 2;        // ichki (matn) kengligi
+
+        Form f = BrandWindow("Qo'llanma", W, 540);
         welcomeForm = f;
 
-        Panel c = new Panel();
-        c.Dock = DockStyle.Fill;
-        c.Padding = new Padding(26, 16, 26, 16);
-        f.Controls.Add(c);
-        c.BringToFront();
+        Panel c = Content(f);
+        int y = 6;
 
-        c.Controls.Add(Lbl("Xush kelibsiz!", 0, 4, 460, 28, 14F, FontStyle.Bold, Ink));
+        c.Controls.Add(Lbl("Xush kelibsiz!", 0, y, IN, 30, 14F, FontStyle.Bold, Ink));       y += 34;
         c.Controls.Add(Lbl("Bu dastur siz yozayotgan paytda harflarni avtomatik almashtiradi.",
-                           0, 34, 470, 22, 9.5F, FontStyle.Regular, Muted));
+                           0, y, IN, 22, 9.5F, FontStyle.Regular, Muted));                    y += 30;
 
-        c.Controls.Add(RulesPanel(0, 62, 466));
+        c.Controls.Add(RulesPanel(0, y, IN));                                                 y += 108;
 
-        c.Controls.Add(Lbl("Bosh harflar ham ishlaydi:   O' → Ö     Sh → Ş     Ch → Ç",
-                           0, 166, 466, 22, 9.5F, FontStyle.Regular, Muted));
+        c.Controls.Add(Lbl("Bosh harflar ham ishlaydi:    O' → Ö      Sh → Ş      Ch → Ç",
+                           0, y, IN, 22, 9.5F, FontStyle.Regular, Muted));                    y += 34;
 
         // Qadamlar
-        c.Controls.Add(Lbl("1", 4, 200, 24, 24, 11F, FontStyle.Bold, Brand));
-        c.Controls.Add(Lbl("Yozishdan oldin  Ctrl + Shift  ni bosing — dastur YOQILADI.",
-                           30, 200, 440, 22, 10F, FontStyle.Regular, Ink));
+        string[] steps = {
+            "Yozishdan oldin  Ctrl + Shift  ni bosing — dastur YOQILADI.",
+            "Yozing:   shahar → şahar,    o'zbek → özbek",
+            "Kerak bo'lsa DARHOL Backspace bosing — asl holi qaytadi (ş → sh).",
+            "Sozlamalar uchun soat yonidagi belgiga o'ng tugma bosing."
+        };
+        for (int i = 0; i < steps.Length; i++)
+        {
+            c.Controls.Add(Lbl((i + 1).ToString(), 2, y, 22, 24, 11F, FontStyle.Bold, AccentText));
+            c.Controls.Add(Lbl(steps[i], 30, y, IN - 30, 24, 10F, FontStyle.Regular, Ink));
+            y += 30;
+        }
+        y += 14;
 
-        c.Controls.Add(Lbl("2", 4, 228, 24, 24, 11F, FontStyle.Bold, Brand));
-        c.Controls.Add(Lbl("Yozing:   shahar → şahar,    o'zbek → özbek",
-                           30, 228, 440, 22, 10F, FontStyle.Regular, Ink));
-
-        c.Controls.Add(Lbl("3", 4, 256, 24, 24, 11F, FontStyle.Bold, Brand));
-        c.Controls.Add(Lbl("Kerak bo'lsa DARHOL Backspace bosing — asl holi qaytadi (ş → sh).",
-                           30, 256, 450, 22, 10F, FontStyle.Regular, Ink));
-
-        c.Controls.Add(Lbl("4", 4, 284, 24, 24, 11F, FontStyle.Bold, Brand));
-        c.Controls.Add(Lbl("Sozlamalar uchun soat yonidagi belgiga o'ng tugma bosing.",
-                           30, 284, 440, 22, 10F, FontStyle.Regular, Ink));
-
-        CheckBox cb = new CheckBox();
+        BrandCheck cb = new BrandCheck();
         cb.Text = "Keyingi safar bu oyna ko'rsatilmasin";
-        cb.SetBounds(2, 322, 320, 24);
-        cb.ForeColor = Muted;
+        cb.SetBounds(0, y + 4, 300, 26);
+        cb.Font = new Font("Segoe UI", 9F);
         c.Controls.Add(cb);
 
-        Button ok = PrimaryButton("Boshlash", 336, 318, 130);
+        Button ok = PrimaryButton("Boshlash", IN - 140, y, 140);
         ok.Click += delegate
         {
             if (cb.Checked) { showWelcome = false; SaveSettings(); }
@@ -1333,10 +1405,11 @@ public static class Program
         };
         c.Controls.Add(ok);
         f.AcceptButton = ok;
+        y += 48;
 
-        c.Controls.Add(Lbl("© " + AppAuthor + ". Mualliflik huquqi himoyalangan.   " +
+        c.Controls.Add(Lbl("© " + AppAuthor + ". Mualliflik huquqi himoyalangan.        " +
                            "Maxfiylik: yozganlaringiz saqlanmaydi.",
-                           0, 360, 470, 20, 8F, FontStyle.Regular, Muted));
+                           0, y, IN, 20, 8F, FontStyle.Regular, Muted));
 
         f.Show(); f.Activate();
     }
@@ -1351,43 +1424,42 @@ public static class Program
         if (settingsForm != null && !settingsForm.IsDisposed)
         { settingsForm.Activate(); return; }
 
-        Form f = BrandWindow("Sozlamalar", 460, 552);
+        const int W = 520;
+        const int IN = W - PAD * 2;
+
+        Form f = BrandWindow("Sozlamalar", W, 596);
         settingsForm = f;
 
-        Panel c = new Panel();
-        c.Dock = DockStyle.Fill;
-        c.Padding = new Padding(24, 14, 24, 14);
-        f.Controls.Add(c);
-        c.BringToFront();
+        Panel c = Content(f);
+        int y = 4;
 
-        int y = 6;
-        c.Controls.Add(Lbl("ALMASHTIRISH QOIDALARI", 0, y, 400, 20, 8.5F, FontStyle.Bold, AccentText)); y += 26;
+        c.Controls.Add(Section("ALMASHTIRISH QOIDALARI", y, IN)); y += 28;
+        BrandCheck cbOG = Chk("o'  →  ö        va        g'  →  ğ", ruleOG, y, IN); c.Controls.Add(cbOG); y += 30;
+        BrandCheck cbSh = Chk("sh  →  ş        va        ch  →  ç", ruleShCh, y, IN); c.Controls.Add(cbSh); y += 42;
 
-        CheckBox cbOG = Chk("o'  →  ö        va        g'  →  ğ", ruleOG, y); c.Controls.Add(cbOG); y += 28;
-        CheckBox cbSh = Chk("sh  →  ş        va        ch  →  ç", ruleShCh, y); c.Controls.Add(cbSh); y += 38;
+        c.Controls.Add(Section("ISHGA TUSHISH", y, IN)); y += 28;
+        BrandCheck cbAuto = Chk("Kompyuter yonganda o'zi ishga tushsin", IsAutoStart(), y, IN); c.Controls.Add(cbAuto); y += 30;
+        BrandCheck cbOn   = Chk("Ochilishi bilan darhol YOQILGAN bo'lsin", startEnabled, y, IN); c.Controls.Add(cbOn); y += 42;
 
-        c.Controls.Add(Lbl("ISHGA TUSHISH", 0, y, 400, 20, 8.5F, FontStyle.Bold, AccentText)); y += 26;
+        c.Controls.Add(Section("KO'RINISH", y, IN)); y += 28;
+        BrandCheck cbToast = Chk("Yoqilganda ekranda bildirishnoma chiqsin", showToast, y, IN); c.Controls.Add(cbToast); y += 30;
+        BrandCheck cbWel   = Chk("Ochilganda qo'llanma oynasi chiqsin", showWelcome, y, IN); c.Controls.Add(cbWel); y += 42;
 
-        CheckBox cbAuto = Chk("Kompyuter yonganda o'zi ishga tushsin", IsAutoStart(), y); c.Controls.Add(cbAuto); y += 28;
-        CheckBox cbOn   = Chk("Ochilishi bilan darhol YOQILGAN bo'lsin", startEnabled, y); c.Controls.Add(cbOn); y += 38;
-
-        c.Controls.Add(Lbl("KO'RINISH", 0, y, 400, 20, 8.5F, FontStyle.Bold, AccentText)); y += 26;
-
-        CheckBox cbToast = Chk("Yoqilganda ekranda bildirishnoma chiqsin", showToast, y); c.Controls.Add(cbToast); y += 28;
-        CheckBox cbWel   = Chk("Ochilganda qo'llanma oynasi chiqsin", showWelcome, y); c.Controls.Add(cbWel); y += 36;
-
-        c.Controls.Add(Lbl("BU DASTURLARDA ISHLAMASIN", 0, y, 400, 20, 8.5F, FontStyle.Bold, AccentText)); y += 24;
+        c.Controls.Add(Section("BU DASTURLARDA ISHLAMASIN", y, IN)); y += 28;
         TextBox tbEx = new TextBox();
         tbEx.Text = excludedApps;
-        tbEx.SetBounds(4, y, 404, 24);
-        tbEx.Font = new Font("Segoe UI", 9F); tbEx.BackColor = Surface; tbEx.ForeColor = Ink; tbEx.BorderStyle = BorderStyle.FixedSingle;
-        c.Controls.Add(tbEx); y += 26;
-        c.Controls.Add(Lbl("Masalan:  cmd, powershell, dota2   (vergul bilan ajrating)",
-                           4, y, 404, 18, 8F, FontStyle.Regular, Muted)); y += 26;
+        tbEx.SetBounds(0, y, IN, 26);
+        tbEx.Font = new Font("Segoe UI", 9.5F);
+        tbEx.BackColor = Surface; tbEx.ForeColor = Ink;
+        tbEx.BorderStyle = BorderStyle.FixedSingle;
+        c.Controls.Add(tbEx); y += 30;
+        c.Controls.Add(Lbl("Masalan:  cmd, powershell, dota2      (vergul bilan ajrating)",
+                           0, y, IN, 20, 8F, FontStyle.Regular, Muted)); y += 34;
 
-        c.Controls.Add(Lbl("Yoqib-o'chirish tugmasi:   Ctrl + Shift", 0, y, 400, 22, 9.5F, FontStyle.Bold, Ink));
+        c.Controls.Add(Lbl("Yoqib-o'chirish tugmasi:    Ctrl + Shift",
+                           0, y, IN, 22, 9.5F, FontStyle.Bold, Ink)); y += 40;
 
-        Button ok = PrimaryButton("Saqlash", 296, 396, 112);
+        Button ok = PrimaryButton("Saqlash", IN - 120, y, 120);
         ok.Click += delegate
         {
             ruleOG = cbOG.Checked; ruleShCh = cbSh.Checked;
@@ -1400,11 +1472,7 @@ public static class Program
             UpdateTray();
             f.Close();
         };
-        Button no = new Button();
-        no.Text = "Bekor"; no.SetBounds(196, 396, 90, 34);
-        no.FlatStyle = FlatStyle.Flat; no.BackColor = Surface;
-        no.FlatAppearance.BorderColor = CardBorder;
-        no.ForeColor = Muted; no.Cursor = Cursors.Hand;
+        Button no = SecondaryButton("Bekor", IN - 220, y, 92);
         no.Click += delegate { f.Close(); };
         c.Controls.Add(ok); c.Controls.Add(no);
         f.AcceptButton = ok; f.CancelButton = no;
@@ -1412,14 +1480,46 @@ public static class Program
         f.Show(); f.Activate();
     }
 
-    static CheckBox Chk(string t, bool v, int y)
+    // Bo'lim sarlavhasi + ostidagi nozik chiziq
+    static Panel Section(string title, int y, int w)
     {
-        CheckBox c = new CheckBox();
+        Panel p = new Panel();
+        p.SetBounds(0, y, w, 24);
+        p.BackColor = Color.Transparent;
+        p.Paint += delegate (object s, PaintEventArgs e)
+        {
+            e.Graphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
+            using (Font ft = new Font("Segoe UI", 8.5F, FontStyle.Bold))
+            using (Brush b = new SolidBrush(AccentText))
+                e.Graphics.DrawString(title, ft, b, -2, 2);
+            using (Pen pen = new Pen(CardBorder))
+                e.Graphics.DrawLine(pen, 0, p.Height - 2, p.Width, p.Height - 2);
+        };
+        return p;
+    }
+
+    static BrandCheck Chk(string t, bool v, int y, int w)
+    {
+        BrandCheck c = new BrandCheck();
         c.Text = t; c.Checked = v;
-        c.SetBounds(4, y, 400, 24);
-        c.ForeColor = Ink;
+        c.SetBounds(0, y, w, 26);
         c.Font = new Font("Segoe UI", 9.5F);
         return c;
+    }
+
+    static Button SecondaryButton(string text, int x, int y, int w)
+    {
+        Button b = new Button();
+        b.Text = text;
+        b.SetBounds(x, y, w, 34);
+        b.FlatStyle = FlatStyle.Flat;
+        b.BackColor = Surface;
+        b.FlatAppearance.BorderColor = CardBorder;
+        b.FlatAppearance.MouseOverBackColor = BrandPale;
+        b.ForeColor = Muted;
+        b.Font = new Font("Segoe UI", 9.5F);
+        b.Cursor = Cursors.Hand;
+        return b;
     }
 
     // ============================================================
@@ -1427,49 +1527,51 @@ public static class Program
     // ============================================================
     static void ShowAbout()
     {
-        Form f = BrandWindow("Dastur haqida", 440, 490);
+        Form f = BrandWindow("Dastur haqida", 500, 566);
 
-        Panel c = new Panel();
-        c.Dock = DockStyle.Fill;
-        c.Padding = new Padding(26, 18, 26, 14);
-        f.Controls.Add(c);
-        c.BringToFront();
+        Panel c = Content(f);
 
-        c.Controls.Add(Lbl(AppName + "  " + AppVer, 0, 4, 380, 26, 13F, FontStyle.Bold, Ink));
-        c.Controls.Add(Lbl(Tagline, 0, 30, 380, 20, 9.5F, FontStyle.Regular, Muted));
-        c.Controls.Add(Lbl("Muallif:  " + AppAuthor, 0, 60, 380, 22, 10F, FontStyle.Regular, Ink));
-        c.Controls.Add(Lbl("© Mualliflik huquqi himoyalangan.", 0, 82, 380, 20, 9F, FontStyle.Regular, Muted));
+        int IN = f.ClientSize.Width - PAD * 2;
+        int y = 4;
+
+        c.Controls.Add(Lbl(AppName + "   " + AppVer, 0, y, IN, 28, 13F, FontStyle.Bold, Ink));   y += 30;
+        c.Controls.Add(Lbl(Tagline, 0, y, IN, 20, 9.5F, FontStyle.Regular, Muted));              y += 30;
+        c.Controls.Add(Lbl("Muallif:   " + AppAuthor, 0, y, IN, 22, 10F, FontStyle.Regular, Ink)); y += 22;
+        c.Controls.Add(Lbl("© Mualliflik huquqi himoyalangan.", 0, y, IN, 20, 9F, FontStyle.Regular, Muted));
+        y += 36;
 
         Panel priv = new Panel();
-        priv.SetBounds(0, 114, 386, 116);
+        priv.SetBounds(0, y, IN, 128);
         priv.BackColor = PrivBg;
         priv.Paint += delegate (object s, PaintEventArgs e)
         {
             using (Pen p = new Pen(PrivBorder))
                 e.Graphics.DrawRectangle(p, 0, 0, priv.Width - 1, priv.Height - 1);
         };
-        priv.Controls.Add(Lbl("MAXFIYLIK KAFOLATI", 16, 12, 340, 20, 9F, FontStyle.Bold, PrivTitle));
-        priv.Controls.Add(Lbl("•  Yozganlaringiz saqlanmaydi\n" +
-                              "•  Faylga yozilmaydi\n" +
-                              "•  Internetga yuborilmaydi\n" +
-                              "•  Dastur internetga umuman ulanmaydi",
-                              16, 34, 350, 74, 9.5F, FontStyle.Regular, PrivText));
+        priv.Controls.Add(Lbl("MAXFIYLIK KAFOLATI", 20, 14, IN - 40, 20, 9F, FontStyle.Bold, PrivTitle));
+        priv.Controls.Add(Lbl("•   Yozganlaringiz saqlanmaydi\n" +
+                              "•   Faylga yozilmaydi\n" +
+                              "•   Internetga yuborilmaydi\n" +
+                              "•   Dastur internetga umuman ulanmaydi",
+                              20, 40, IN - 40, 80, 9.5F, FontStyle.Regular, PrivText));
         c.Controls.Add(priv);
+        y += 148;
 
         // --- Qo'llab-quvvatlash aloqasi ---
-        c.Controls.Add(Lbl("YORDAM VA TAKLIFLAR", 0, 242, 380, 20, 9F, FontStyle.Bold, Brand));
+        c.Controls.Add(Section("YORDAM VA TAKLIFLAR", y, IN)); y += 28;
         c.Controls.Add(Lbl("Muammo yoki taklifingiz bo'lsa, bemalol yozing:",
-                           0, 262, 386, 20, 9F, FontStyle.Regular, Muted));
+                           0, y, IN, 20, 9F, FontStyle.Regular, Muted));
+        y += 26;
 
-        LinkLabel mail = SupportLink("✉   " + SupportEmail, 0, 286);
+        LinkLabel mail = SupportLink("✉    " + SupportEmail, 0, y, IN);
         mail.LinkClicked += delegate { OpenUrl("mailto:" + SupportEmail); };
-        c.Controls.Add(mail);
+        c.Controls.Add(mail); y += 26;
 
-        LinkLabel tg = SupportLink("✈   " + SupportTelegram + "   (Telegram)", 0, 310);
+        LinkLabel tg = SupportLink("✈    " + SupportTelegram + "    (Telegram)", 0, y, IN);
         tg.LinkClicked += delegate { OpenUrl("https://t.me/" + SupportTelegram.TrimStart('@')); };
-        c.Controls.Add(tg);
+        c.Controls.Add(tg); y += 40;
 
-        Button ok = PrimaryButton("Yopish", 274, 342, 112);
+        Button ok = PrimaryButton("Yopish", IN - 120, y, 120);
         ok.Click += delegate { f.Close(); };
         c.Controls.Add(ok);
         f.AcceptButton = ok;
@@ -1477,11 +1579,11 @@ public static class Program
         f.Show(); f.Activate();
     }
 
-    static LinkLabel SupportLink(string text, int x, int y)
+    static LinkLabel SupportLink(string text, int x, int y, int w)
     {
         LinkLabel l = new LinkLabel();
         l.Text = text;
-        l.SetBounds(x, y, 330, 22);
+        l.SetBounds(x, y, w, 22);
         l.Font = new Font("Segoe UI", 9.5F);
         l.LinkColor = Brand;
         l.ActiveLinkColor = BrandDark;
