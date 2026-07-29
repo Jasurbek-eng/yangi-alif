@@ -424,7 +424,7 @@ public static class Program
         // --- Jim o'rnatish (ko'p kompyuterga tarqatish uchun) ---
         if (silentInstall && !IsInstalled())
         {
-            try { DoInstall(true, true); } catch { Environment.Exit(1); }
+            try { DoInstall(DefaultInstallDir, true, true, true, true); } catch { Environment.Exit(1); }
             Environment.Exit(0);
         }
 
@@ -538,7 +538,8 @@ public static class Program
     // ============================================================
     const string UninstKey = @"Software\Microsoft\Windows\CurrentVersion\Uninstall\YangiAlif";
 
-    public static string InstallDir
+    // Tavsiya etiladigan joy (administrator huquqi talab qilmaydi)
+    public static string DefaultInstallDir
     {
         get
         {
@@ -547,91 +548,410 @@ public static class Program
         }
     }
 
+    // Haqiqatda o'rnatilgan joy (foydalanuvchi boshqa papka tanlagan bo'lishi mumkin)
+    public static string InstallDir
+    {
+        get
+        {
+            try
+            {
+                using (RegistryKey k = Registry.CurrentUser.OpenSubKey(UninstKey))
+                {
+                    if (k != null)
+                    {
+                        object v = k.GetValue("InstallLocation");
+                        if (v != null && !string.IsNullOrEmpty(v.ToString())) return v.ToString();
+                    }
+                }
+            }
+            catch { }
+            return DefaultInstallDir;
+        }
+    }
+
+    // Dastur o'rnatilgan joydan ishlayaptimi?
     static bool IsInstalled()
     {
         try
         {
             string me = Path.GetDirectoryName(Application.ExecutablePath);
-            return string.Equals(me.TrimEnd('\\'), InstallDir.TrimEnd('\\'),
+            if (string.Equals(me.TrimEnd('\\'), InstallDir.TrimEnd('\\'),
+                              StringComparison.OrdinalIgnoreCase)) return true;
+            // Eski standart joy ham hisobga olinadi
+            return string.Equals(me.TrimEnd('\\'), DefaultInstallDir.TrimEnd('\\'),
                                  StringComparison.OrdinalIgnoreCase);
         }
         catch { return false; }
     }
 
-    // O'rnatish oynasi — sodda, bitta katta tugma
+    // ============================================================
+    //  O'RNATISH SEHRGARI (wizard) — professional o'rnatuvchilardek
+    //  1) Xush kelibsiz  2) Shartlar  3) Joy va sozlamalar
+    //  4) O'rnatilmoqda  5) Tayyor
+    // ============================================================
+    static Form wizForm;
+    static Panel wizBody;
+    static Button wizNext, wizBack, wizCancel;
+    static Label  wizStepLbl;
+    static int    wizPage = 0;
+
+    static TextBox    wizPath;
+    static BrandCheck wizAgree, wizAuto, wizDesk, wizMenu, wizRun;
+    static ProgressBar wizBar;
+    static string chosenPath = "";
+    static bool optAuto = true, optDesk = true, optMenu = true;
+    static Label       wizStatus;
+
+    const int WIZ_W = 600;
+    static int WizIn { get { return WIZ_W - PAD * 2; } }
+
     static void ShowInstaller()
     {
-        const int W = 560;
-        const int IN = W - PAD * 2;
-
-        Form f = BrandWindow("O'rnatish", W, 545);
-        f.FormBorderStyle = FormBorderStyle.FixedDialog;
-
-        Panel c = Content(f);
-        int y = 2;
-
-        c.Controls.Add(Lbl("Xush kelibsiz!", 0, y, IN, 30, 14F, FontStyle.Bold, Ink));       y += 32;
-        c.Controls.Add(Lbl("Bu dastur yozayotganingizda harflarni avtomatik almashtiradi:",
-                           0, y, IN, 22, 9.5F, FontStyle.Regular, Muted));                    y += 28;
-        c.Controls.Add(RulesPanel(0, y, IN));                                                 y += 114;
-
-        BrandCheck cbAuto = new BrandCheck();
-        cbAuto.Text = "Kompyuter yonganda o'zi ishga tushsin";
-        cbAuto.Checked = true;
-        cbAuto.SetBounds(0, y, IN, 26);
-        cbAuto.Font = new Font("Segoe UI", 9.5F);
-        c.Controls.Add(cbAuto);                                                               y += 30;
-
-        BrandCheck cbDesk = new BrandCheck();
-        cbDesk.Text = "Ish stolida yorliq yaratilsin";
-        cbDesk.Checked = true;
-        cbDesk.SetBounds(0, y, IN, 26);
-        cbDesk.Font = new Font("Segoe UI", 9.5F);
-        c.Controls.Add(cbDesk);                                                               y += 34;
-
-        Label status = Lbl("", 0, y, IN, 22, 9.5F, FontStyle.Regular, AccentText);
-        c.Controls.Add(status);                                                               y += 28;
-
-        Button install = PrimaryButton("O'RNATISH", 0, y, IN);
-        install.Height = 48;
-        install.Font = new Font("Segoe UI", 12F, FontStyle.Bold);
-        y += 62;
-        install.Click += delegate
-        {
-            install.Enabled = false;
-            status.Text = "O'rnatilmoqda, kuting...";
-            Application.DoEvents();
-            try
-            {
-                DoInstall(cbAuto.Checked, cbDesk.Checked);
-                status.ForeColor = PrivTitle;
-                status.Text = "Tayyor! Dastur ishga tushmoqda...";
-                Application.DoEvents();
-                System.Threading.Thread.Sleep(700);
-                f.Close();
-            }
-            catch (Exception ex)
-            {
-                install.Enabled = true;
-                status.ForeColor = Color.FromArgb(190, 40, 40);
-                status.Text = "Xatolik: " + ex.Message;
-            }
-        };
-        c.Controls.Add(install);
-
-        c.Controls.Add(Lbl("Dastur faqat sizning foydalanuvchi papkangizga o'rnatiladi.\n" +
-                           "Administrator huquqi talab qilinmaydi. Istalgan vaqtda o'chirish mumkin.",
-                           0, y, IN, 42, 8.5F, FontStyle.Regular, Muted));
-        y += 44;
-        c.Controls.Add(Lbl("© " + AppAuthor + ". Mualliflik huquqi himoyalangan.",
-                           0, y, IN, 20, 8F, FontStyle.Regular, Muted));
-
+        Form f = BuildInstallerForm();
         Application.Run(f);
     }
 
-    static void DoInstall(bool autoStart, bool desktopShortcut)
+    // Oynani qurish (ishga tushirishdan ajratilgan — sinash uchun ham qulay)
+    static Form BuildInstallerForm()
     {
-        // Ishlab turgan nusxalarni to'xtatamiz
+        Form f = BrandWindow("O'rnatish", WIZ_W, 560);
+        wizForm = f;
+        f.FormBorderStyle = FormBorderStyle.FixedDialog;
+        f.FormClosing += delegate (object s, FormClosingEventArgs e)
+        {
+            // O'rnatish jarayonida yopib yubormasin
+            if (wizPage == 3) e.Cancel = true;
+        };
+
+        // --- Pastki panel: tugmalar ---
+        Panel foot = new Panel();
+        foot.Dock = DockStyle.Bottom;
+        foot.Height = 68;
+        foot.BackColor = BrandPale;
+        foot.Paint += delegate (object s, PaintEventArgs e)
+        {
+            using (Pen p = new Pen(CardBorder)) e.Graphics.DrawLine(p, 0, 0, foot.Width, 0);
+        };
+
+        wizStepLbl = Lbl("", PAD, 24, 160, 20, 8.5F, FontStyle.Regular, Muted);
+        foot.Controls.Add(wizStepLbl);
+
+        wizCancel = SecondaryButton("Bekor", WIZ_W - PAD - 300, 17, 92);
+        wizCancel.Click += delegate { f.Close(); };
+        wizBack = SecondaryButton("< Orqaga", WIZ_W - PAD - 200, 17, 92);
+        wizBack.Click += delegate { wizPage--; RenderWizard(); };
+        wizNext = PrimaryButton("Keyingi >", WIZ_W - PAD - 100, 17, 100);
+        wizNext.Click += delegate { WizardNext(); };
+        foot.Controls.Add(wizCancel); foot.Controls.Add(wizBack); foot.Controls.Add(wizNext);
+        f.Controls.Add(foot);
+
+        wizBody = Content(f);
+        RenderWizard();
+        return f;
+    }
+
+    static void RenderWizard()
+    {
+        wizBody.Controls.Clear();
+        wizBack.Visible   = (wizPage == 1 || wizPage == 2);
+        wizCancel.Visible = (wizPage <= 2);
+        wizNext.Enabled   = true;
+        wizStepLbl.Text   = (wizPage < 3) ? "Qadam " + (wizPage + 1) + " / 3" : "";
+
+        if      (wizPage == 0) WizWelcome();
+        else if (wizPage == 1) WizTerms();
+        else if (wizPage == 2) WizOptions();
+        else if (wizPage == 3) WizInstalling();
+        else                   WizDone();
+    }
+
+    static void WizardNext()
+    {
+        if (wizPage == 1 && (wizAgree == null || !wizAgree.Checked))
+        {
+            MessageBox.Show("Davom etish uchun shartlarga rozilik belgisini qo'ying.",
+                            AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+        if (wizPage == 2 && !ValidateInstallPath()) return;
+        if (wizPage == 4) { wizForm.Close(); return; }
+
+        wizPage++;
+        RenderWizard();
+    }
+
+    // ---------- 1-qadam: xush kelibsiz ----------
+    static void WizWelcome()
+    {
+        wizNext.Text = "Keyingi >";
+        int y = 4, IN = WizIn;
+
+        wizBody.Controls.Add(Lbl("Xush kelibsiz!", 0, y, IN, 30, 14F, FontStyle.Bold, Ink)); y += 34;
+        wizBody.Controls.Add(Lbl(AppName + " kompyuteringizga o'rnatiladi.\n" +
+                                 "Bu dastur yozayotganingizda harflarni avtomatik almashtiradi:",
+                                 0, y, IN, 44, 9.5F, FontStyle.Regular, Muted));            y += 50;
+
+        wizBody.Controls.Add(RulesPanel(0, y, IN));                                          y += 112;
+
+        wizBody.Controls.Add(Lbl("Bosh harflar ham ishlaydi:    O' → Ö      Sh → Ş      Ch → Ç",
+                                 0, y, IN, 22, 9.5F, FontStyle.Regular, Muted));            y += 34;
+        wizBody.Controls.Add(Lbl("Davom etish uchun \"Keyingi\" tugmasini bosing.",
+                                 0, y, IN, 22, 9.5F, FontStyle.Regular, Ink));              y += 30;
+        wizBody.Controls.Add(Lbl("© " + AppAuthor + ". Mualliflik huquqi himoyalangan.",
+                                 0, y, IN, 20, 8F, FontStyle.Regular, Muted));
+    }
+
+    // ---------- 2-qadam: shartlar va maxfiylik ----------
+    static void WizTerms()
+    {
+        wizNext.Text = "Keyingi >";
+        int y = 4, IN = WizIn;
+
+        wizBody.Controls.Add(Lbl("Shartlar va maxfiylik", 0, y, IN, 30, 13F, FontStyle.Bold, Ink)); y += 36;
+
+        TextBox tb = new TextBox();
+        tb.Multiline = true;
+        tb.ReadOnly = true;
+        tb.ScrollBars = ScrollBars.Vertical;
+        tb.SetBounds(0, y, IN, 210);
+        tb.BackColor = BrandPale;
+        tb.ForeColor = Ink;
+        tb.BorderStyle = BorderStyle.FixedSingle;
+        tb.Font = new Font("Segoe UI", 9F);
+        tb.Text =
+            "MAXFIYLIK KAFOLATI\r\n" +
+            "\r\n" +
+            "Dastur klaviaturani FAQAT harf almashtirish uchun kuzatadi.\r\n" +
+            "\r\n" +
+            "   •  Yozganlaringiz saqlanmaydi\r\n" +
+            "   •  Faylga yozilmaydi\r\n" +
+            "   •  Internetga yuborilmaydi\r\n" +
+            "   •  Dastur internetga umuman ulanmaydi\r\n" +
+            "   •  Parol maydonlariga tegmaydi\r\n" +
+            "\r\n" +
+            "FOYDALANISH SHARTLARI\r\n" +
+            "\r\n" +
+            "Dastur bepul tarqatiladi. Uni erkin ishlatishingiz va\r\n" +
+            "do'stlaringizga berishingiz mumkin.\r\n" +
+            "\r\n" +
+            "Dasturni sotish, o'zgartirish yoki o'z nomingizdan\r\n" +
+            "tarqatish taqiqlanadi.\r\n" +
+            "\r\n" +
+            "Muallif dastur ishlatilishidan kelib chiqadigan zarar uchun\r\n" +
+            "javobgar emas.\r\n" +
+            "\r\n" +
+            "MUALLIFLIK HUQUQI\r\n" +
+            "\r\n" +
+            "© " + AppAuthor + ". Barcha huquqlar himoyalangan.\r\n" +
+            "Aloqa: " + SupportEmail + "  ·  " + SupportTelegram + "\r\n";
+        tb.Select(0, 0);
+        wizBody.Controls.Add(tb);
+        y += 222;
+
+        wizAgree = new BrandCheck();
+        wizAgree.Text = "Shartlarni o'qidim va roziman";
+        wizAgree.SetBounds(0, y, IN, 26);
+        wizAgree.Font = new Font("Segoe UI", 9.5F);
+        wizBody.Controls.Add(wizAgree);
+    }
+
+    // ---------- 3-qadam: o'rnatish joyi va sozlamalar ----------
+    static void WizOptions()
+    {
+        wizNext.Text = "O'rnatish";
+        int y = 4, IN = WizIn;
+
+        wizBody.Controls.Add(Lbl("O'rnatish joyi", 0, y, IN, 28, 13F, FontStyle.Bold, Ink)); y += 32;
+        wizBody.Controls.Add(Lbl("Dastur quyidagi papkaga o'rnatiladi. O'zgartirish uchun \"Tanlash\" ni bosing.",
+                                 0, y, IN, 22, 9F, FontStyle.Regular, Muted));               y += 28;
+
+        if (string.IsNullOrEmpty(chosenPath)) chosenPath = DefaultInstallDir;
+        wizPath = new TextBox();
+        wizPath.Text = chosenPath;                       // orqaga qaytilsa ham saqlanadi
+        wizPath.TextChanged += delegate { chosenPath = wizPath.Text; };
+        wizPath.SetBounds(0, y, IN - 110, 26);
+        wizPath.Font = new Font("Segoe UI", 9.5F);
+        wizPath.BackColor = Surface; wizPath.ForeColor = Ink;
+        wizPath.BorderStyle = BorderStyle.FixedSingle;
+        wizBody.Controls.Add(wizPath);
+
+        Button browse = SecondaryButton("Tanlash...", IN - 100, y - 4, 100);
+        browse.Click += delegate
+        {
+            using (FolderBrowserDialog fb = new FolderBrowserDialog())
+            {
+                fb.Description = AppName + " qaysi papkaga o'rnatilsin?";
+                fb.ShowNewFolderButton = true;
+                try { fb.SelectedPath = Path.GetDirectoryName(wizPath.Text.TrimEnd('\\')); } catch { }
+                if (fb.ShowDialog() == DialogResult.OK)
+                    wizPath.Text = Path.Combine(fb.SelectedPath, "YangiAlif");
+            }
+        };
+        wizBody.Controls.Add(browse);
+        y += 34;
+
+        wizBody.Controls.Add(Lbl("Administrator huquqi talab qilinmaydi. Kerakli joy: 1 MB.",
+                                 0, y, IN, 20, 8.5F, FontStyle.Regular, Muted));            y += 32;
+
+        wizBody.Controls.Add(Section("QO'SHIMCHA SOZLAMALAR", y, IN));                       y += 30;
+
+        wizAuto = new BrandCheck();
+        wizAuto.Text = "Kompyuter yonganda dastur o'zi ishga tushsin";
+        wizAuto.Checked = optAuto; wizAuto.CheckedChanged += delegate { optAuto = wizAuto.Checked; }; wizAuto.SetBounds(0, y, IN, 26);
+        wizAuto.Font = new Font("Segoe UI", 9.5F);
+        wizBody.Controls.Add(wizAuto);                                                       y += 30;
+
+        wizDesk = new BrandCheck();
+        wizDesk.Text = "Ish stolida yorliq yaratilsin";
+        wizDesk.Checked = optDesk; wizDesk.CheckedChanged += delegate { optDesk = wizDesk.Checked; }; wizDesk.SetBounds(0, y, IN, 26);
+        wizDesk.Font = new Font("Segoe UI", 9.5F);
+        wizBody.Controls.Add(wizDesk);                                                       y += 30;
+
+        wizMenu = new BrandCheck();
+        wizMenu.Text = "Start menyusiga qo'shilsin";
+        wizMenu.Checked = optMenu; wizMenu.CheckedChanged += delegate { optMenu = wizMenu.Checked; }; wizMenu.SetBounds(0, y, IN, 26);
+        wizMenu.Font = new Font("Segoe UI", 9.5F);
+        wizBody.Controls.Add(wizMenu);
+    }
+
+    static bool ValidateInstallPath()
+    {
+        string p = (wizPath == null) ? "" : wizPath.Text.Trim();
+        if (string.IsNullOrEmpty(p))
+        {
+            MessageBox.Show("O'rnatish papkasini ko'rsating.", AppName,
+                            MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return false;
+        }
+        try
+        {
+            if (!Path.IsPathRooted(p)) throw new Exception("To'liq yo'l ko'rsating (masalan C:\\...).");
+
+            // Yozish huquqi bormi — sinab ko'ramiz
+            Directory.CreateDirectory(p);
+            string probe = Path.Combine(p, ".yangialif_sinov");
+            File.WriteAllText(probe, "x");
+            File.Delete(probe);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                "Bu papkaga yozib bo'lmadi:\n\n" + p + "\n\n" + ex.Message +
+                "\n\nBoshqa papka tanlang (masalan Hujjatlar ichida).",
+                AppName, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return false;
+        }
+    }
+
+    // ---------- 4-qadam: o'rnatilmoqda ----------
+    static void WizInstalling()
+    {
+        wizNext.Enabled = false;
+        wizNext.Text = "O'rnatilmoqda...";
+        int y = 30, IN = WizIn;
+
+        wizBody.Controls.Add(Lbl("O'rnatilmoqda", 0, y, IN, 30, 13F, FontStyle.Bold, Ink)); y += 40;
+        wizStatus = Lbl("Tayyorlanmoqda...", 0, y, IN, 22, 9.5F, FontStyle.Regular, Muted);
+        wizBody.Controls.Add(wizStatus);                                                     y += 30;
+
+        wizBar = new ProgressBar();
+        wizBar.SetBounds(0, y, IN, 22);
+        wizBar.Maximum = 100;
+        wizBody.Controls.Add(wizBar);
+
+        System.Windows.Forms.Timer t = new System.Windows.Forms.Timer();
+        t.Interval = 250;
+        t.Tick += delegate
+        {
+            t.Stop();
+            try
+            {
+                DoInstall(wizPath.Text.Trim(), wizAuto.Checked, wizDesk.Checked, wizMenu.Checked, false);
+                wizPage = 4;
+                RenderWizard();
+            }
+            catch (Exception ex)
+            {
+                LogError(ex);
+                MessageBox.Show("O'rnatishda xatolik yuz berdi:\n\n" + ex.Message +
+                                "\n\nAntivirus to'sqinlik qilayotgan bo'lishi mumkin.",
+                                AppName, MessageBoxButtons.OK, MessageBoxIcon.Error);
+                wizPage = 2;
+                RenderWizard();
+            }
+        };
+        t.Start();
+    }
+
+    static void WizStep(string text, int percent)
+    {
+        if (wizStatus != null) wizStatus.Text = text;
+        if (wizBar != null) wizBar.Value = Math.Min(100, percent);
+        Application.DoEvents();
+        System.Threading.Thread.Sleep(160);
+    }
+
+    // ---------- 5-qadam: tayyor ----------
+    static void WizDone()
+    {
+        wizNext.Text = "Tayyor";
+        wizNext.Enabled = true;
+        wizBack.Visible = false;
+        wizCancel.Visible = false;
+        wizStepLbl.Text = "";
+
+        int y = 6, IN = WizIn;
+        wizBody.Controls.Add(Lbl("O'rnatish tugadi!", 0, y, IN, 32, 15F, FontStyle.Bold, AccentText)); y += 38;
+        wizBody.Controls.Add(Lbl(AppName + " kompyuteringizga muvaffaqiyatli o'rnatildi.",
+                                 0, y, IN, 22, 10F, FontStyle.Regular, Ink));                 y += 34;
+
+        Panel box = new Panel();
+        box.SetBounds(0, y, IN, 150);
+        box.BackColor = BrandPale;
+        box.Paint += delegate (object s, PaintEventArgs e)
+        {
+            using (Pen p = new Pen(CardBorder))
+                e.Graphics.DrawRectangle(p, 0, 0, box.Width - 1, box.Height - 1);
+        };
+        box.Controls.Add(Lbl("QANDAY ISHLATILADI", 22, 14, IN - 44, 22, 9F, FontStyle.Bold, AccentText));
+        box.Controls.Add(Lbl("1.   Soat yonida dastur belgisi turadi.\n" +
+                             "2.   Yozishdan oldin  Ctrl + Shift  bosing — YOQILADI.\n" +
+                             "3.   Yozing:   shahar → şahar,   o'zbek → özbek\n" +
+                             "4.   Sozlamalar uchun belgiga o'ng tugma bosing.",
+                             22, 42, IN - 44, 96, 9.5F, FontStyle.Regular, Ink));
+        wizBody.Controls.Add(box);
+        y += 164;
+
+        wizRun = new BrandCheck();
+        wizRun.Text = "Dasturni hozir ishga tushirish";
+        wizRun.Checked = true;
+        wizRun.SetBounds(0, y, IN, 26);
+        wizRun.Font = new Font("Segoe UI", 9.5F);
+        wizBody.Controls.Add(wizRun);
+        y += 34;
+
+        wizBody.Controls.Add(Lbl("O'chirish: Windows Sozlamalari → Ilovalar → " + AppName,
+                                 0, y, IN, 20, 8.5F, FontStyle.Regular, Muted));
+        wizForm.FormClosing += delegate
+        {
+            if (wizRun != null && wizRun.Checked)
+            {
+                try { System.Diagnostics.Process.Start(Path.Combine(installedTo, "YangiAlif.exe")); }
+                catch { }
+            }
+        };
+    }
+
+    static string installedTo = "";   // haqiqatda o'rnatilgan papka
+
+    static void DoInstall(string dir, bool autoStart, bool desktopShortcut,
+                          bool startMenu, bool runAfter)
+    {
+        if (string.IsNullOrEmpty(dir)) dir = DefaultInstallDir;
+        installedTo = dir;
+
+        WizStep("Ishlab turgan nusxa to'xtatilmoqda...", 10);
         try
         {
             foreach (System.Diagnostics.Process p in
@@ -643,18 +963,22 @@ public static class Program
         }
         catch { }
 
-        Directory.CreateDirectory(InstallDir);
-        string target = Path.Combine(InstallDir, "YangiAlif.exe");
+        WizStep("Papka tayyorlanmoqda...", 30);
+        Directory.CreateDirectory(dir);
+
+        WizStep("Fayllar ko'chirilmoqda...", 55);
+        string target = Path.Combine(dir, "YangiAlif.exe");
         File.Copy(Application.ExecutablePath, target, true);
 
-        // Yorliqlar
-        Shortcut(Path.Combine(Environment.GetFolderPath(
-            Environment.SpecialFolder.Programs), AppName + ".lnk"), target);
+        WizStep("Yorliqlar yaratilmoqda...", 75);
+        if (startMenu)
+            Shortcut(Path.Combine(Environment.GetFolderPath(
+                Environment.SpecialFolder.Programs), AppName + ".lnk"), target);
         if (desktopShortcut)
             Shortcut(Path.Combine(Environment.GetFolderPath(
                 Environment.SpecialFolder.DesktopDirectory), AppName + ".lnk"), target);
 
-        // Windows "Ilovalar" ro'yxati
+        WizStep("Windows ro'yxatiga qo'shilmoqda...", 90);
         try
         {
             using (RegistryKey k = Registry.CurrentUser.CreateSubKey(UninstKey))
@@ -663,7 +987,7 @@ public static class Program
                 k.SetValue("DisplayVersion", AppVer);
                 k.SetValue("Publisher", AppAuthor);
                 k.SetValue("DisplayIcon", target + ",0");
-                k.SetValue("InstallLocation", InstallDir);
+                k.SetValue("InstallLocation", dir);
                 k.SetValue("UninstallString", "\"" + target + "\" /uninstall");
                 k.SetValue("NoModify", 1, RegistryValueKind.DWord);
                 k.SetValue("NoRepair", 1, RegistryValueKind.DWord);
@@ -673,7 +997,6 @@ public static class Program
         }
         catch { }
 
-        // Avtostart
         try
         {
             using (RegistryKey k = Registry.CurrentUser.CreateSubKey(RunPath))
@@ -684,8 +1007,9 @@ public static class Program
         }
         catch { }
 
-        // O'rnatilgan nusxani ishga tushiramiz
-        try { System.Diagnostics.Process.Start(target); } catch { }
+        WizStep("Yakunlanmoqda...", 100);
+
+        if (runAfter) try { System.Diagnostics.Process.Start(target); } catch { }
     }
 
     static void Shortcut(string lnk, string target)
