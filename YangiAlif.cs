@@ -674,13 +674,28 @@ public static class Program
         try { Registry.CurrentUser.DeleteSubKeyTree(UninstKey, false); } catch { }
         try { Registry.CurrentUser.DeleteSubKeyTree(RegPath, false); } catch { }
 
-        // O'zini o'chira olmaydi — kichik skript orqali tozalaymiz
+        // MUHIM: avval xabarni ko'rsatamiz, KEYIN tozalashni boshlaymiz.
+        // Aks holda foydalanuvchi xabarni sekin yopsa, tozalash skripti
+        // dastur hali ishlab turganda ishga tushib, fayllarni o'chira olmaydi.
+        MessageBox.Show(AppName + " o'chirildi.\n\nFoydalanganingiz uchun rahmat!",
+                        AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+        // Dastur o'z papkasini o'zi o'chira olmaydi — kichik skript qiladi.
+        // Skript bir necha marta urinadi (dastur to'liq yopilishini kutib).
         try
         {
             string bat = Path.Combine(Path.GetTempPath(), "yangialif_cleanup.bat");
             File.WriteAllText(bat,
-                "@echo off\r\nping 127.0.0.1 -n 3 >nul\r\n" +
+                "@echo off\r\n" +
+                "setlocal\r\n" +
+                "set n=0\r\n" +
+                ":retry\r\n" +
+                "ping 127.0.0.1 -n 2 >nul\r\n" +
                 "rd /s /q \"" + InstallDir + "\" >nul 2>&1\r\n" +
+                "if not exist \"" + InstallDir + "\" goto done\r\n" +
+                "set /a n+=1\r\n" +
+                "if %n% lss 10 goto retry\r\n" +
+                ":done\r\n" +
                 "del /f /q \"%~f0\" >nul 2>&1\r\n");
             System.Diagnostics.ProcessStartInfo psi = new System.Diagnostics.ProcessStartInfo(bat);
             psi.WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden;
@@ -689,8 +704,8 @@ public static class Program
         }
         catch { }
 
-        MessageBox.Show(AppName + " o'chirildi.\n\nFoydalanganingiz uchun rahmat!",
-                        AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
+        // Darhol chiqamiz — shunda skript papkani bemalol o'chiradi
+        Environment.Exit(0);
     }
 
     // ============================================================
@@ -970,14 +985,31 @@ public static class Program
     // Faol oynaning klaviatura tilida shu tugma qaysi harfni beradi?
     // Bu MUHIM: foydalanuvchi rus/kirill tiliga o'tsa, "s" tugmasi "ы" beradi —
     // unda almashtirish ISHLAMASLIGI kerak, aks holda matn buziladi.
+    // Klaviatura tili keshi — hook ichida har tugma uchun WinAPI chaqirmaslik uchun.
+    // Hook sekin bo'lsa Windows uni jimgina o'chirib qo'yadi, shuning uchun
+    // bu yerdagi har bir mikrosoniya muhim.
+    static IntPtr cachedLayout = IntPtr.Zero;
+    static IntPtr layoutHwnd   = IntPtr.Zero;
+    static int    layoutTick   = 0;
+
     static char CharFromVk(int vk)
     {
         try
         {
-            uint pid;
-            uint tid = GetWindowThreadProcessId(GetForegroundWindow(), out pid);
-            IntPtr layout = GetKeyboardLayout(tid);
-            uint r = MapVirtualKeyEx((uint)vk, MAPVK_VK_TO_CHAR, layout);
+            IntPtr fg = GetForegroundWindow();
+            int now = Environment.TickCount;
+
+            // Faol oyna o'zgarmagan va 1 soniya o'tmagan bo'lsa — keshdan olamiz
+            if (fg != layoutHwnd || now - layoutTick > 1000)
+            {
+                uint pid;
+                uint tid = GetWindowThreadProcessId(fg, out pid);
+                cachedLayout = GetKeyboardLayout(tid);
+                layoutHwnd = fg;
+                layoutTick = now;
+            }
+
+            uint r = MapVirtualKeyEx((uint)vk, MAPVK_VK_TO_CHAR, cachedLayout);
             return (char)(r & 0x7FFF);
         }
         catch { return '\0'; }
