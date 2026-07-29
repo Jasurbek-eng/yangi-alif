@@ -1,0 +1,25 @@
+# ============================================================
+#  Yangi Alif — git e'tiborsiz qoldiradigan fayllar
+# ============================================================
+
+# Qurish natijalari (Qurish-build.ps1 ularni qaytadan yaratadi)
+YangiAlif.exe
+YangiAlif.ico
+*.dll
+*.pdb
+
+# Diagnostika
+alifbo-log.txt
+yangialif-log.txt
+
+# Windows / OneDrive
+Thumbs.db
+desktop.ini
+*.lnk
+
+# Vaqtinchalik
+*.tmp
+~$*
+
+# Claude Code mahalliy sozlamalari
+.claude/
