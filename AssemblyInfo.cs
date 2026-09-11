@@ -11,6 +11,6 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyProduct("Yangi Alif")]
 [assembly: AssemblyCopyright("© Xasanov Jasurbek. Mualliflik huquqi himoyalangan.")]
 [assembly: AssemblyTrademark("Yangi Alif")]
-[assembly: AssemblyVersion("1.0.0.0")]
-[assembly: AssemblyFileVersion("1.0.0.0")]
+[assembly: AssemblyVersion("1.2.0.0")]
+[assembly: AssemblyFileVersion("1.2.0.0")]
 [assembly: ComVisible(false)]

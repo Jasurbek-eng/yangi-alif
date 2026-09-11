@@ -1,0 +1,6 @@
+# ESLATMA: "yangialif.uz" -- hali tanlanmagan namunaviy domen.
+# Haqiqiy domeningizni sotib olgach shu manzilni almashtiring.
+User-agent: *
+Allow: /
+
+Sitemap: https://yangialif.uz/sitemap.xml

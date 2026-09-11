@@ -12,6 +12,10 @@ $ErrorActionPreference = 'Stop'
 $dir = $PSScriptRoot
 Add-Type -AssemblyName System.Drawing
 
+# Versiyani manba koddan o'zi o'qiydi — qo'lda ikki joyda yozib yurmaslik uchun
+$csText = Get-Content (Join-Path $dir 'YangiAlif.cs') -Raw
+$AppVersion = if ($csText -match 'AppVer\s*=\s*"([^"]+)"') { $Matches[1] } else { '0.0' }
+
 # Ishlab turgan nusxa faylni band qilib turmasligi uchun to'xtatamiz
 Get-Process YangiAlif -ErrorAction SilentlyContinue | Stop-Process -Force
 Start-Sleep -Milliseconds 700
@@ -136,6 +140,74 @@ if ($LASTEXITCODE -ne 0) {
 $info = Get-Item $exe
 Write-Host "   YangiAlif.exe tayyor — $([math]::Round($info.Length/1KB,1)) KB" -ForegroundColor Green
 
+# ---------- 3) SAYT UCHUN FAYLLARNI YANGILASH ----------
+# site/index.html shu fayllarni ko'rsatadi — har qurishda avtomatik yangilanadi,
+# shunda versiya chiqarganda saytni qo'lda yangilashni unutib qo'ymaymiz.
+$siteDl = Join-Path $dir 'site\downloads'
+if (Test-Path (Join-Path $dir 'site\index.html')) {
+    Write-Host "3) Sayt fayllari yangilanmoqda..." -ForegroundColor Cyan
+    New-Item -ItemType Directory -Path $siteDl -Force | Out-Null
+    Copy-Item $exe (Join-Path $siteDl 'YangiAlif.exe') -Force
+
+    $stage = Join-Path ([System.IO.Path]::GetTempPath()) 'YangiAlif-portable-build'
+    New-Item -ItemType Directory -Path $stage -Force | Out-Null
+    Copy-Item (Join-Path $dir 'YangiAlif.cs')  $stage -Force
+    Copy-Item (Join-Path $dir 'YangiAlif.ps1') $stage -Force
+    Copy-Item (Join-Path $dir 'YangiAlif.vbs') $stage -Force
+    Set-Content -Path (Join-Path $stage 'OQI-BOSHLA.txt') -Encoding UTF8 -Value @"
+YANGI ALIF -- portable (skript) versiya
+========================================
+
+BU NIMA?
+Smart App Control (SAC) yoqilgan kompyuterlar uchun. Bu usulda
+imzosiz .exe fayl UMUMAN yaratilmaydi -- dastur to'g'ridan-to'g'ri
+imzolangan powershell.exe ichida, xotirada ishga tushadi.
+
+QANDAY ISHLATISH?
+1. Bu 3 ta faylni (YangiAlif.cs, YangiAlif.ps1, YangiAlif.vbs)
+   BIR papkaga joylashtiring.
+2. YangiAlif.vbs faylini ikki marta bosing.
+
+Savol-taklif: jasurbekxasanov214@gmail.com | Telegram: @khasanov_jasur
+"@
+    $zipPath = Join-Path $siteDl 'YangiAlif-portable.zip'
+    Compress-Archive -Path (Join-Path $stage '*') -DestinationPath $zipPath -Force
+
+    # Yaxlitlikni tekshirish uchun SHA-256 (sayt shu faylni o'qib ko'rsatadi)
+    $exeHash = (Get-FileHash (Join-Path $siteDl 'YangiAlif.exe') -Algorithm SHA256).Hash.ToLower()
+    $zipHash = (Get-FileHash $zipPath -Algorithm SHA256).Hash.ToLower()
+    $checksums = @"
+YangiAlif.exe (v$AppVersion)
+  SHA-256: $exeHash
+
+YangiAlif-portable.zip (v$AppVersion)
+  SHA-256: $zipHash
+
+Tekshirish (PowerShell'da):
+  Get-FileHash YangiAlif.exe -Algorithm SHA256
+Yoki (cmd'da):
+  certutil -hashfile YangiAlif.exe SHA256
+"@
+    Set-Content -Path (Join-Path $siteDl 'checksums.txt') -Value $checksums -Encoding UTF8
+    $checksumJson = "{`"version`":`"$AppVersion`",`"exe`":{`"sha256`":`"$exeHash`",`"bytes`":$((Get-Item (Join-Path $siteDl 'YangiAlif.exe')).Length)},`"zip`":{`"sha256`":`"$zipHash`",`"bytes`":$((Get-Item $zipPath).Length)}}"
+    Set-Content -Path (Join-Path $siteDl 'checksums.json') -Value $checksumJson -Encoding UTF8 -NoNewline
+
+    # main.js'ni versiya belgisi (?v=) bilan chaqiramiz — shunda foydalanuvchi
+    # brauzeri yangilangan faylni eski keshdan emas, qaytadan yuklaydi.
+    #
+    # MUHIM: Get-Content/Set-Content -Encoding UTF8 ISHLATILMAYDI — Windows
+    # PowerShell 5.1'da Get-Content'ning standart o'qish kodировkasi UTF-8
+    # emas, shuning uchun o', g', sh, ch belgilari (ö ğ ş ç) va emoji'lar
+    # BUZILADI ("mojibake"). .NET File'ning o'zini, aniq UTF-8 (BOM'siz)
+    # bilan ishlatamiz — bu ishonchli va hamma joyda bir xil ishlaydi.
+    $indexPath = Join-Path $dir 'site\index.html'
+    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+    $indexHtml = [System.IO.File]::ReadAllText($indexPath, [System.Text.Encoding]::UTF8)
+    $indexHtml = $indexHtml -replace 'assets/main\.js(\?v=[^"]*)?"', "assets/main.js?v=$AppVersion`""
+    [System.IO.File]::WriteAllText($indexPath, $indexHtml, $utf8NoBom)
+
+    Write-Host "   Sayt fayllari tayyor (site/downloads/) — SHA-256 hisoblandi" -ForegroundColor Green
+}
 
 Write-Host ""
 Write-Host "TAYYOR." -ForegroundColor Green

@@ -33,6 +33,7 @@ Bosh harflar ham ishlaydi: `O' → Ö`, `Sh → Ş`, `Ch → Ç`
 | `Logo.png` | Logotip (dastur ichiga joylashtiriladi) |
 | `Qurish-build.ps1` | **Qurish skripti** — ikonka va `.exe` yasaydi |
 | `YangiAlif.ps1` / `.vbs` | Zaxira yo'l: Smart App Control yoqilgan kompyuterlar uchun |
+| `site/` | Yuklab olish sayti — pastga qarang |
 
 `YangiAlif.exe` va `YangiAlif.ico` — qurish natijalari, git'da saqlanmaydi.
 
@@ -46,7 +47,31 @@ PowerShell'da:
 powershell -ExecutionPolicy Bypass -File Qurish-build.ps1
 ```
 
-Natija: `YangiAlif.exe` (o'zini o'rnatadigan bitta fayl).
+Natija: `YangiAlif.exe` (o'zini o'rnatadigan bitta fayl). Shu bilan birga skript
+`site/downloads/` papkasidagi `.exe`, portable `.zip` va ularning SHA-256
+checksumlarini ham avtomatik yangilaydi — sayt har doim eng so'nggi build bilan
+sinxron turadi.
+
+---
+
+## Sayt (`site/`)
+
+Yuklab olish sahifasi — `site/index.html`. Toza HTML/CSS/JS, hech qanday server
+yoki bog'lanish kerak emas — istalgan static hosting'ga (GitHub Pages, Cloudflare
+Pages, Netlify, yoki oddiy cPanel) butun `site/` papkasini yuklash kifoya.
+
+Mahalliy ko'rish uchun:
+
+```
+powershell -ExecutionPolicy Bypass -File Qurish-build.ps1
+python -m http.server 8123 --directory site
+```
+
+so'ng brauzerda `http://localhost:8123` oching.
+
+**Domen tanlangach** almashtiring: `site/robots.txt` va `site/sitemap.xml`
+ichidagi `yangialif.uz` — hozircha namunaviy manzil, `site/index.html`
+ichidagi `og:url`/`og:image` meta teglari ham shunga mos yangilanishi kerak.
 
 Talab: Windows 10/11 (.NET Framework 4 ichida mavjud, alohida hech narsa kerak emas).
 

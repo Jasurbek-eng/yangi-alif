@@ -139,6 +139,11 @@ public class BrandCheck : CheckBox
         Cursor = Cursors.Hand;
         MouseEnter += delegate { hover = true; Invalidate(); };
         MouseLeave += delegate { hover = false; Invalidate(); };
+        // UserPaint yoqilgan kontrollar fokus o'zgarganda o'zini avtomatik
+        // qayta chizmaydi — klaviatura bilan yuruvchi foydalanuvchi qaysi
+        // katakchada turganini ko'rishi uchun buni qo'lda qilamiz.
+        GotFocus  += delegate { Invalidate(); };
+        LostFocus += delegate { Invalidate(); };
     }
 
     protected override void OnPaint(PaintEventArgs e)
@@ -163,8 +168,13 @@ public class BrandCheck : CheckBox
         {
             using (Brush b = new SolidBrush(Program.Brand))
                 g.FillRectangle(b, r);
-            // Belgi (✓) — qo'lda chizamiz, shrift shartmas
-            using (Pen p = new Pen(Color.White, 2.1f))
+            // Belgi (✓) — qo'lda chizamiz, shrift shartmas.
+            // Qorong'i-kontrast (High Contrast) rejimida Program.Brand tizim
+            // ta'kidlash rangiga (Highlight) aylanadi — bu holatda belgi
+            // rangini ham mos HighlightText'ga o'zgartiramiz, aks holda
+            // ba'zi kontrastli mavzularda oq belgi ko'rinmay qolishi mumkin.
+            Color markColor = Program.HighContrast ? SystemColors.HighlightText : Color.White;
+            using (Pen p = new Pen(markColor, 2.1f))
             {
                 p.StartCap = LineCap.Round; p.EndCap = LineCap.Round;
                 g.DrawLines(p, new Point[] {
@@ -184,6 +194,11 @@ public class BrandCheck : CheckBox
 
         using (Brush tb = new SolidBrush(Enabled ? Program.Ink : Program.Muted))
             g.DrawString(Text, Font, tb, box + 9, (Height - Font.Height) / 2f - 1);
+
+        // Klaviatura fokusi ko'rsatkichi — Tab bilan yurganda qaysi
+        // katakchada turilganini ko'rsatadi (aks holda ko'rinmas edi).
+        if (Focused)
+            ControlPaint.DrawFocusRectangle(g, new Rectangle(0, 0, Width - 1, Height - 1));
     }
 }
 
@@ -192,7 +207,7 @@ public static class Program
 {
     // ---------- Mahsulot ----------
     public const string AppName   = "Yangi Alif";
-    public const string AppVer    = "1.0";
+    public const string AppVer    = "1.2";
     public const string AppAuthor = "Xasanov Jasurbek";
     public const string Tagline   = "Yangi alifbo yordamchisi";
 
@@ -210,15 +225,18 @@ public static class Program
     const string RunName = "YangiAlif";
 
     // ---------- Brend ranglari (logotipdan olingan) ----------
-    public static readonly Color Brand      = Color.FromArgb(72, 120, 48);    // asosiy yashil
-    public static readonly Color BrandDark  = Color.FromArgb(44, 82, 32);
-    public static readonly Color BrandLight = Color.FromArgb(122, 170, 80);
-    public static readonly Color OkGreen    = Color.FromArgb(88, 150, 56);
+    // MUHIM: readonly emas — Windows Yuqori kontrast (High Contrast) rejimida
+    // ApplyTheme() bularni tizim ranglariga almashtiradi (pastga qarang).
+    public static Color Brand      = Color.FromArgb(72, 120, 48);    // asosiy yashil
+    public static Color BrandDark  = Color.FromArgb(44, 82, 32);
+    public static Color BrandLight = Color.FromArgb(122, 170, 80);
+    public static Color OkGreen    = Color.FromArgb(88, 150, 56);
     public static readonly Color OffGray    = Color.FromArgb(150, 155, 148);
 
     // ---------- Mavzuga bog'liq ranglar (yorug' / qorong'i) ----------
     // Windows mavzusiga qarab avtomatik tanlanadi.
-    public static bool  DarkMode    = false;
+    public static bool  DarkMode      = false;
+    public static bool  HighContrast  = false;
     public static Color Surface     = Color.White;                       // oyna foni
     public static Color BrandPale   = Color.FromArgb(242, 247, 238);     // sarlavha foni
     public static Color CardBorder  = Color.FromArgb(205, 224, 196);
@@ -250,6 +268,33 @@ public static class Program
 
     static void ApplyTheme()
     {
+        // MUHIM: Yuqori kontrast (masalan ko'zi ojiz foydalanuvchilar uchun)
+        // yorug'/qorong'i mavzudan USTUN turadi. Bunday holatda o'zimizning
+        // brend ranglarimiz emas, foydalanuvchi TANLAGAN tizim ranglari
+        // ishlatiladi — aks holda matn o'qib bo'lmas darajada kontrastsiz
+        // chiqib qolishi mumkin.
+        HighContrast = SystemInformation.HighContrast;
+        if (HighContrast)
+        {
+            DarkMode   = false;
+            Surface    = SystemColors.Window;
+            BrandPale  = SystemColors.Control;
+            CardBorder = SystemColors.WindowFrame;
+            Ink        = SystemColors.WindowText;
+            Muted      = SystemColors.GrayText;
+            HeadTitle  = SystemColors.WindowText;
+            AccentText = SystemColors.HotTrack;
+            PrivBg     = SystemColors.Window;
+            PrivBorder = SystemColors.WindowFrame;
+            PrivTitle  = SystemColors.HotTrack;
+            PrivText   = SystemColors.WindowText;
+            Brand      = SystemColors.Highlight;
+            BrandDark  = SystemColors.Highlight;
+            BrandLight = SystemColors.Highlight;
+            OkGreen    = SystemColors.Highlight;
+            return;
+        }
+
         DarkMode = SystemUsesDarkTheme();
         if (!DarkMode) return;   // yorug' rejim — yuqoridagi qiymatlar qoladi
 
@@ -307,8 +352,6 @@ public static class Program
     const int VK_LSHIFT  = 0xA0, VK_RSHIFT = 0xA1;
     const int VK_LCTRL   = 0xA2, VK_RCTRL  = 0xA3;
     const int VK_LWIN    = 0x5B, VK_RWIN   = 0x5C;
-    const int VK_OEM_7   = 0xDE;
-    const int VK_O = 0x4F, VK_G = 0x47, VK_S = 0x53, VK_C = 0x43, VK_H = 0x48;
 
     const uint KEYEVENTF_KEYUP   = 0x0002;
     const uint KEYEVENTF_UNICODE = 0x0004;
@@ -384,7 +427,7 @@ public static class Program
     static bool   justReplaced = false;
     static string lastOrig     = "";
     static int    lastKeyTick  = 0;
-    static bool   csArmed = false, csDirty = false;
+    static bool   csArmed = false, csDirty = false, csSuppressModUp = false;
 
     static IntPtr hookId = IntPtr.Zero, mouseHookId = IntPtr.Zero;
     static HookProc keyProc = HookCallback, mouseProc = MouseCallback;
@@ -462,7 +505,6 @@ public static class Program
         LoadSettings();
         enabled = startEnabled;
 
-        LoadLogo();
         onIcon  = MakeIcon(true);
         offIcon = MakeIcon(false);
 
@@ -608,7 +650,7 @@ public static class Program
     static BrandCheck wizAgree, wizAuto, wizDesk, wizMenu, wizRun;
     static ProgressBar wizBar;
     static string chosenPath = "";
-    static bool optAuto = true, optDesk = true, optMenu = true;
+    static bool optAuto = true, optDesk = true, optMenu = true, agreedTerms = false;
     static Label       wizStatus;
 
     const int WIZ_W = 600;
@@ -763,6 +805,8 @@ public static class Program
 
         wizAgree = new BrandCheck();
         wizAgree.Text = "Shartlarni o'qidim va roziman";
+        wizAgree.Checked = agreedTerms;   // "Orqaga" bosib qaytilsa ham saqlanadi
+        wizAgree.CheckedChanged += delegate { agreedTerms = wizAgree.Checked; };
         wizAgree.SetBounds(0, y, IN, 26);
         wizAgree.Font = new Font("Segoe UI", 9.5F);
         wizBody.Controls.Add(wizAgree);
@@ -1049,6 +1093,14 @@ public static class Program
                             AppName, MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
             return;
 
+        // MUHIM: haqiqiy o'rnatish joyini registry'dagi yozuvlar
+        // O'CHIRILISHIDAN OLDIN eslab qolamiz. Aks holda (masalan,
+        // foydalanuvchi standart bo'lmagan papka tanlagan bo'lsa)
+        // InstallDir keyinroq DefaultInstallDir'ga tushib qoladi va
+        // tozalash skripti noto'g'ri (bo'sh) papkani o'chiradi — haqiqiy
+        // fayllar diskda qolib ketadi.
+        string installDirToDelete = InstallDir;
+
         try
         {
             foreach (System.Diagnostics.Process p in
@@ -1088,8 +1140,8 @@ public static class Program
                 "set n=0\r\n" +
                 ":retry\r\n" +
                 "ping 127.0.0.1 -n 2 >nul\r\n" +
-                "rd /s /q \"" + InstallDir + "\" >nul 2>&1\r\n" +
-                "if not exist \"" + InstallDir + "\" goto done\r\n" +
+                "rd /s /q \"" + installDirToDelete + "\" >nul 2>&1\r\n" +
+                "if not exist \"" + installDirToDelete + "\" goto done\r\n" +
                 "set /a n+=1\r\n" +
                 "if %n% lss 10 goto retry\r\n" +
                 ":done\r\n" +
@@ -1208,55 +1260,80 @@ public static class Program
 
     static IntPtr MouseCallback(int nCode, IntPtr wParam, IntPtr lParam)
     {
-        if (nCode >= 0)
+        try
         {
-            lastHookTick = Environment.TickCount;
-            int m = wParam.ToInt32();
-            if (m == WM_LBUTTONDOWN || m == WM_RBUTTONDOWN || m == WM_MBUTTONDOWN)
-            { prev = '\0'; justReplaced = false; }
+            if (nCode >= 0)
+            {
+                lastHookTick = Environment.TickCount;
+                int m = wParam.ToInt32();
+                if (m == WM_LBUTTONDOWN || m == WM_RBUTTONDOWN || m == WM_MBUTTONDOWN)
+                { prev = '\0'; justReplaced = false; }
+            }
         }
+        catch { }   // MUHIM: past darajali hook ichidan istisno chiqib ketsa,
+                    // .NET vaqti buni ushlay olmasligi mumkin va butun dastur
+                    // qulab tushishi mumkin — shuning uchun bu yerda albatta ushlaymiz.
         return CallNextHookEx(mouseHookId, nCode, wParam, lParam);
     }
 
     static IntPtr HookCallback(int nCode, IntPtr wParam, IntPtr lParam)
     {
-        if (nCode >= 0)
+        try
         {
-            lastHookTick = Environment.TickCount;
-            int msg = wParam.ToInt32();
-            bool keyDown = (msg == WM_KEYDOWN || msg == WM_SYSKEYDOWN);
-            bool keyUp   = (msg == WM_KEYUP   || msg == WM_SYSKEYUP);
-
-            KBDLLHOOKSTRUCT k = (KBDLLHOOKSTRUCT)Marshal.PtrToStructure(lParam, typeof(KBDLLHOOKSTRUCT));
-            bool injected = (k.flags & LLKHF_INJECTED) != 0;
-            int vk = (int)k.vkCode;
-
-            if (!injected)
+            if (nCode >= 0)
             {
-                bool isShift = (vk == VK_SHIFT   || vk == VK_LSHIFT || vk == VK_RSHIFT);
-                bool isCtrl  = (vk == VK_CONTROL || vk == VK_LCTRL  || vk == VK_RCTRL);
+                lastHookTick = Environment.TickCount;
+                int msg = wParam.ToInt32();
+                bool keyDown = (msg == WM_KEYDOWN || msg == WM_SYSKEYDOWN);
+                bool keyUp   = (msg == WM_KEYUP   || msg == WM_SYSKEYUP);
 
-                // Ctrl+Shift "toza bosish". Bosilayotgan tugmaning o'zi hook ichida
-                // hali "bosilgan" ko'rinmasligi mumkin -> IKKINCHI tugmani tekshiramiz.
-                if (keyDown)
+                KBDLLHOOKSTRUCT k = (KBDLLHOOKSTRUCT)Marshal.PtrToStructure(lParam, typeof(KBDLLHOOKSTRUCT));
+                bool injected = (k.flags & LLKHF_INJECTED) != 0;
+                int vk = (int)k.vkCode;
+
+                if (!injected)
                 {
-                    if (isShift || isCtrl)
+                    bool isShift = (vk == VK_SHIFT   || vk == VK_LSHIFT || vk == VK_RSHIFT);
+                    bool isCtrl  = (vk == VK_CONTROL || vk == VK_LCTRL  || vk == VK_RCTRL);
+
+                    // Ctrl+Shift "toza bosish". Bosilayotgan tugmaning o'zi hook ichida
+                    // hali "bosilgan" ko'rinmasligi mumkin -> IKKINCHI tugmani tekshiramiz.
+                    if (keyDown)
                     {
-                        bool other = isShift ? Down(VK_CONTROL) : Down(VK_SHIFT);
-                        if (other) { csArmed = true; csDirty = false; }
+                        if (isShift || isCtrl)
+                        {
+                            bool other = isShift ? Down(VK_CONTROL) : Down(VK_SHIFT);
+                            if (other) { csArmed = true; csDirty = false; }
+                        }
+                        else if (Down(VK_CONTROL) || Down(VK_SHIFT))
+                        { csDirty = true; csArmed = false; }
                     }
-                    else if (Down(VK_CONTROL) || Down(VK_SHIFT))
-                    { csDirty = true; csArmed = false; }
-                }
-                if (keyUp && (isShift || isCtrl))
-                {
-                    if (csArmed && !csDirty) { csArmed = false; Toggle(); }
-                    if (!Down(VK_CONTROL) && !Down(VK_SHIFT)) { csArmed = false; csDirty = false; }
-                }
+                    if (keyUp && (isShift || isCtrl))
+                    {
+                        if (csArmed && !csDirty) { csArmed = false; Toggle(); csSuppressModUp = true; }
+                        bool bothUp = !Down(VK_CONTROL) && !Down(VK_SHIFT);
+                        if (bothUp) { csArmed = false; csDirty = false; }
 
-                if (enabled && keyDown && ProcessKey(vk)) return (IntPtr)1;
+                        // MUHIM: Windows'ning ko'plab tizimlarida "Ctrl+Shift" —
+                        // klaviatura TILINI almashtirish uchun standart tugma
+                        // birikmasi (Sozlamalar > Til > Qo'shimcha klaviatura
+                        // sozlamalari). Bizning YOQISH/O'CHIRISH birikmamiz aynan
+                        // shu bilan bir xil, shuning uchun ikkala tugma ham
+                        // batamom qo'yib yuborilmaguncha ularning "yuqoriga"
+                        // hodisasini uzatmaymiz — aks holda YangiAlif yoqilganda
+                        // klaviatura tili ham kutilmaganda almashib ketadi.
+                        if (csSuppressModUp)
+                        {
+                            if (bothUp) csSuppressModUp = false;
+                            return (IntPtr)1;
+                        }
+                    }
+
+                    if (enabled && keyDown && ProcessKey(vk)) return (IntPtr)1;
+                }
             }
         }
+        catch { }   // MUHIM: yuqoridagi izohga qarang — hook barqarorligi uchun shart.
         return CallNextHookEx(hookId, nCode, wParam, lParam);
     }
 
@@ -1865,7 +1942,7 @@ public static class Program
     // ============================================================
     static void ShowAbout()
     {
-        Form f = BrandWindow("Dastur haqida", 500, 566);
+        Form f = BrandWindow("Dastur haqida", 500, 592);
 
         Panel c = Content(f);
 
@@ -1907,7 +1984,11 @@ public static class Program
 
         LinkLabel tg = SupportLink("✈    " + SupportTelegram + "    (Telegram)", 0, y, IN);
         tg.LinkClicked += delegate { OpenUrl("https://t.me/" + SupportTelegram.TrimStart('@')); };
-        c.Controls.Add(tg); y += 40;
+        c.Controls.Add(tg); y += 26;
+
+        LinkLabel logLink = SupportLink("🗎    Xatolar jurnalini ochish", 0, y, IN);
+        logLink.LinkClicked += delegate { OpenErrorLog(); };
+        c.Controls.Add(logLink); y += 40;
 
         Button ok = PrimaryButton("Yopish", IN - 120, y, 120);
         ok.Click += delegate { f.Close(); };
@@ -1937,6 +2018,27 @@ public static class Program
         catch
         {
             MessageBox.Show("Havolani ocha olmadim. Manzilni qo'lda nusxalang:\n\n" + url,
+                            AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+    }
+
+    // Qo'llab-quvvatlashga murojaat qilganda foydalanuvchi xato faylini
+    // qo'lda qidirmasin — bir tugma bilan ochamiz (yoki hali xato yo'qligini aytamiz).
+    static void OpenErrorLog()
+    {
+        try
+        {
+            if (!File.Exists(ErrorLogPath))
+            {
+                MessageBox.Show("Hozircha xatolar jurnali yo'q — demak dastur muammosiz ishlayapti.",
+                                AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+            System.Diagnostics.Process.Start(ErrorLogPath);
+        }
+        catch
+        {
+            MessageBox.Show("Faylni ocha olmadim. Qo'lda toping:\n\n" + ErrorLogPath,
                             AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
     }

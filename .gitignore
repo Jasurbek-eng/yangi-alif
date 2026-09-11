@@ -8,6 +8,12 @@ YangiAlif.ico
 *.dll
 *.pdb
 
+# Sayt uchun qurilgan fayllar (Qurish-build.ps1 dan ko'chiriladi, qayta yaratiladi)
+site/downloads/*.exe
+site/downloads/*.zip
+site/downloads/checksums.txt
+site/downloads/checksums.json
+
 # Diagnostika
 alifbo-log.txt
 yangialif-log.txt

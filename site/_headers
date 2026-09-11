@@ -1,0 +1,13 @@
+# Netlify va Cloudflare Pages bu faylni avtomatik o'qiydi.
+# Boshqa hosting (masalan oddiy cPanel) ishlatsangiz, bu server sozlamalari
+# orqali (.htaccess yoki hosting panelidagi "HTTP Headers" bo'limi) qo'shiladi.
+
+/*
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: geolocation=(), microphone=(), camera=()
+  Content-Security-Policy: default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; object-src 'none'; base-uri 'self'
+
+/downloads/*
+  Content-Disposition: attachment

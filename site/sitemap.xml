@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- ESLATMA: "yangialif.uz" — hali tanlanmagan namunaviy domen.
+     Haqiqiy domeningizni sotib olgach, shu faylda va robots.txt'da almashtiring. -->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://yangialif.uz/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>1.0</priority>
+  </url>
+</urlset>
