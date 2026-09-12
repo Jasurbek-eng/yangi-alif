@@ -94,6 +94,56 @@
     });
   });
 
+  // ---------- Tema (yorug'/qorong'i) almashtirgich ----------
+  // Boshlang'ich holat FOUC'siz — assets/theme-init.js orqali <head>'da,
+  // sahifa chizilishidan OLDIN o'rnatiladi. Bu yerda faqat tugma bosilganda
+  // almashtirib, tanlovni eslab qolamiz.
+  var themeBtn = document.getElementById('themeBtn');
+  if (themeBtn) {
+    themeBtn.addEventListener('click', function () {
+      var root = document.documentElement;
+      var current = root.getAttribute('data-theme');
+      var isDark = current
+        ? current === 'dark'
+        : (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      var next = isDark ? 'light' : 'dark';
+      root.setAttribute('data-theme', next);
+      try { localStorage.setItem('yangialif-theme', next); } catch (e) { }
+    });
+  }
+
+  // ---------- Sahifa aylantirish ko'rsatkichi ----------
+  var progressBar = document.getElementById('scrollProgress');
+  if (progressBar) {
+    var updateProgress = function () {
+      var h = document.documentElement;
+      var scrollTop = h.scrollTop || document.body.scrollTop;
+      var scrollHeight = (h.scrollHeight || document.body.scrollHeight) - h.clientHeight;
+      var pct = scrollHeight > 0 ? (scrollTop / scrollHeight) * 100 : 0;
+      progressBar.style.width = pct + '%';
+    };
+    window.addEventListener('scroll', updateProgress, { passive: true });
+    updateProgress();
+  }
+
+  // ---------- Yuklab olishlar sonini (anonim, yig'indi) hisoblash ----------
+  // Faqat SAYT uchun — dasturning o'zi bunga aloqasi yo'q va hech qachon
+  // internetga ulanmaydi. /api/track — Cloudflare Pages Function (agar
+  // sayt boshqa hostingda bo'lsa yoki hali sozlanmagan bo'lsa, so'rov
+  // 404 qaytaradi va jimgina e'tiborsiz qoldiriladi — sayt buzilmaydi).
+  document.querySelectorAll('a[download]').forEach(function (a) {
+    a.addEventListener('click', function () {
+      var file = /\.zip($|\?)/.test(a.getAttribute('href') || '') ? 'zip' : 'exe';
+      try {
+        if (navigator.sendBeacon) {
+          navigator.sendBeacon('/api/track?file=' + file);
+        } else {
+          fetch('/api/track?file=' + file, { method: 'POST', keepalive: true }).catch(function () { });
+        }
+      } catch (e) { }
+    });
+  });
+
   // ---------- Mobil menyu ----------
   var menuBtn = document.getElementById('menuBtn');
   var mobileLinks = document.getElementById('mobileLinks');
@@ -132,7 +182,7 @@
   // ---------- Hero'dagi jonli yozish namunasi (avtomatik, tegilmaydi) ----------
   var demoEl = document.getElementById('demoText');
   if (demoEl) {
-    var PHRASE = "O'zbekiston go'zal, shahri chiroyli";
+    var PHRASE = "O'zbekiston go'zal diyor va chiroyli shaharlari ko'p";
     var frames = buildFrames(PHRASE);
     var i = 0, dir = 1, pause = 0;
     function tick() {

@@ -192,13 +192,21 @@ public class BrandCheck : CheckBox
                 g.DrawRectangle(p, r.X, r.Y, r.Width - 1, r.Height - 1);
         }
 
+        float textX = box + 9;
         using (Brush tb = new SolidBrush(Enabled ? Program.Ink : Program.Muted))
-            g.DrawString(Text, Font, tb, box + 9, (Height - Font.Height) / 2f - 1);
+            g.DrawString(Text, Font, tb, textX, (Height - Font.Height) / 2f - 1);
 
         // Klaviatura fokusi ko'rsatkichi — Tab bilan yurganda qaysi
         // katakchada turilganini ko'rsatadi (aks holda ko'rinmas edi).
+        // Ramka MATN kengligi bo'yicha chiziladi, butun kontrol bo'ylab
+        // emas — aks holda matndan keyin uzun bo'sh quti ko'rinib qoladi
+        // (Windows'ning o'z katakchalari ham shunday ixcham chizadi).
         if (Focused)
-            ControlPaint.DrawFocusRectangle(g, new Rectangle(0, 0, Width - 1, Height - 1));
+        {
+            int textW = (int)Math.Ceiling(g.MeasureString(Text, Font).Width);
+            int focusW = Math.Min(Width - 1, (int)textX + textW + 4);
+            ControlPaint.DrawFocusRectangle(g, new Rectangle(0, 0, focusW, Height - 1));
+        }
     }
 }
 
@@ -248,6 +256,10 @@ public static class Program
     public static Color PrivBorder  = Color.FromArgb(187, 247, 208);
     public static Color PrivTitle   = Color.FromArgb(21, 128, 61);
     public static Color PrivText    = Color.FromArgb(22, 101, 52);
+    // Ogohlantirish ramkasi (parol haqidagi eslatma uchun)
+    public static Color WarnBg      = Color.FromArgb(255, 248, 230);
+    public static Color WarnBorder  = Color.FromArgb(243, 223, 160);
+    public static Color WarnText    = Color.FromArgb(122, 91, 0);
 
     // Windows'da qorong'i mavzu yoqilganmi?
     static bool SystemUsesDarkTheme()
@@ -288,6 +300,9 @@ public static class Program
             PrivBorder = SystemColors.WindowFrame;
             PrivTitle  = SystemColors.HotTrack;
             PrivText   = SystemColors.WindowText;
+            WarnBg     = SystemColors.Window;
+            WarnBorder = SystemColors.WindowFrame;
+            WarnText   = SystemColors.WindowText;
             Brand      = SystemColors.Highlight;
             BrandDark  = SystemColors.Highlight;
             BrandLight = SystemColors.Highlight;
@@ -309,6 +324,9 @@ public static class Program
         PrivBorder = Color.FromArgb(62, 92, 60);
         PrivTitle  = Color.FromArgb(134, 214, 152);
         PrivText   = Color.FromArgb(178, 222, 186);
+        WarnBg     = Color.FromArgb(43, 36, 16);
+        WarnBorder = Color.FromArgb(84, 74, 34);
+        WarnText   = Color.FromArgb(232, 200, 116);
     }
 
     // Oyna sarlavhasini ham qorong'i qilamiz (Windows 10 1809+ / 11)
@@ -419,7 +437,13 @@ public static class Program
     static bool startEnabled = false;
     static bool showWelcome  = true;
     static bool showToast    = true;
-    static string excludedApps = "";   // bu dasturlarda ishlamasin (vergul bilan)
+    // Bu dasturlarda ishlamasin (vergul bilan). Standart ro'yxatga parol
+    // menejerlari kiritilgan: ularning maydonlarini Windows "parol maydoni"
+    // deb ko'rsatmasligi mumkin, almashtirilgan parol esa foydalanuvchini
+    // o'z hisobidan chiqarib qo'yadi. Foydalanuvchi ro'yxatni Sozlamalardan
+    // istalgancha o'zgartira oladi.
+    static string excludedApps =
+        "KeePass, KeePassXC, Bitwarden, 1Password, Dashlane, KasperskyPasswordManager";
 
     // ---------- Holat ----------
     static bool   enabled      = false;
@@ -768,7 +792,10 @@ public static class Program
         tb.Multiline = true;
         tb.ReadOnly = true;
         tb.ScrollBars = ScrollBars.Vertical;
-        tb.SetBounds(0, y, IN, 210);
+        // Balandlik sahifadagi bo'sh joyga moslab tanlangan (avval 210 edi
+        // va pastda ~98px behuda bo'sh qolardi) — shunda shartlar matnining
+        // ko'proq qismi aylantirmasdan ko'rinadi.
+        tb.SetBounds(0, y, IN, 300);
         tb.BackColor = BrandPale;
         tb.ForeColor = Ink;
         tb.BorderStyle = BorderStyle.FixedSingle;
@@ -782,7 +809,18 @@ public static class Program
             "   •  Faylga yozilmaydi\r\n" +
             "   •  Internetga yuborilmaydi\r\n" +
             "   •  Dastur internetga umuman ulanmaydi\r\n" +
-            "   •  Parol maydonlariga tegmaydi\r\n" +
+            "\r\n" +
+            "PAROLLAR HAQIDA — MUHIM\r\n" +
+            "\r\n" +
+            "Dastur Windows'ning oddiy parol maydonlarini tanib, u yerda\r\n" +
+            "o'zi to'xtaydi. Lekin BRAUZERDAGI (Chrome, Firefox, Edge) va\r\n" +
+            "Telegram, Discord kabi dasturlardagi parol maydonlarini\r\n" +
+            "texnik jihatdan tanib bo'lmaydi — ular Windows'ga oddiy\r\n" +
+            "matn maydoni bo'lib ko'rinadi.\r\n" +
+            "\r\n" +
+            "Shuning uchun: parol yozishdan oldin Ctrl+Shift bosib\r\n" +
+            "dasturni o'chirib qo'ying. Aks holda parolingizdagi \"sh\",\r\n" +
+            "\"ch\", \"o'\", \"g'\" harflari almashib qolishi mumkin.\r\n" +
             "\r\n" +
             "FOYDALANISH SHARTLARI\r\n" +
             "\r\n" +
@@ -801,7 +839,7 @@ public static class Program
             "Aloqa: " + SupportEmail + "  ·  " + SupportTelegram + "\r\n";
         tb.Select(0, 0);
         wizBody.Controls.Add(tb);
-        y += 222;
+        y += 312;   // matn maydoni balandligi (300) + bo'shliq
 
         wizAgree = new BrandCheck();
         wizAgree.Text = "Shartlarni o'qidim va roziman";
@@ -1131,17 +1169,35 @@ public static class Program
 
         // Dastur o'z papkasini o'zi o'chira olmaydi — kichik skript qiladi.
         // Skript bir necha marta urinadi (dastur to'liq yopilishini kutib).
+        //
+        // XAVFSIZLIK: installDirToDelete registry'dan o'qiladi. Agar u
+        // (masalan zararli dastur tomonidan) qo'lda o'zgartirilgan bo'lsa
+        // va tirnoq (") belgisini o'z ichiga olsa, quyidagi qatordagi
+        // qavs ichidan "chiqib ketib", .bat ichiga ixtiyoriy buyruq
+        // in'ektsiya qilishi mumkin edi. Haqiqiy Windows yo'lida "
+        // belgisi HECH QACHON bo'lmaydi — shuning uchun uni ko'rsak,
+        // qiymatga ishonmaymiz va standart papkaga qaytamiz. "%" belgisi
+        // esa .bat ichida muhit o'zgaruvchisi sifatida talqin qilinishi
+        // mumkinligi uchun ikkilantirib qo'yamiz (%% — .bat'da "tom" %).
         try
         {
-            string bat = Path.Combine(Path.GetTempPath(), "yangialif_cleanup.bat");
+            string safeDir = installDirToDelete;
+            if (string.IsNullOrEmpty(safeDir) || safeDir.IndexOf('"') >= 0 || !Path.IsPathRooted(safeDir))
+                safeDir = DefaultInstallDir;
+            safeDir = safeDir.Replace("%", "%%");
+
+            // Fayl nomi tasodifiy — mahalliy hujumchi oldindan bilib,
+            // shu nomga ishora (symlink) tayyorlab qo'yishi qiyinlashadi.
+            string bat = Path.Combine(Path.GetTempPath(),
+                "yangialif_cleanup_" + Guid.NewGuid().ToString("N") + ".bat");
             File.WriteAllText(bat,
                 "@echo off\r\n" +
                 "setlocal\r\n" +
                 "set n=0\r\n" +
                 ":retry\r\n" +
                 "ping 127.0.0.1 -n 2 >nul\r\n" +
-                "rd /s /q \"" + installDirToDelete + "\" >nul 2>&1\r\n" +
-                "if not exist \"" + installDirToDelete + "\" goto done\r\n" +
+                "rd /s /q \"" + safeDir + "\" >nul 2>&1\r\n" +
+                "if not exist \"" + safeDir + "\" goto done\r\n" +
                 "set /a n+=1\r\n" +
                 "if %n% lss 10 goto retry\r\n" +
                 ":done\r\n" +
@@ -1491,6 +1547,21 @@ public static class Program
 
     // Parol maydonimi? Agar shunday bo'lsa — HECH NARSA almashtirmaymiz.
     // Aks holda paroli "shaxs" bo'lgan odam hisobiga kira olmay qoladi.
+    //
+    // CHEKLOV (ochiq aytilishi shart): bu tekshiruv faqat KLASSIK Win32
+    // "EDIT" boshqaruvlarida ishlaydi — ya'ni Windows'ning o'z oynalari,
+    // eski dasturlar, RDP va shunga o'xshashlarda. Chrome, Firefox, Edge
+    // hamda Electron dasturlari (Telegram Desktop, Discord, VS Code)
+    // sahifa ichidagi maydonlar uchun alohida HWND umuman yaratmaydi —
+    // fokusda faqat bitta "render" oynasi turadi. Shu sababli u yerdagi
+    // parol maydonini ANIQLAB BO'LMAYDI.
+    //
+    // UI Automation (IsPassword) orqali aniqlash mumkin edi, lekin u
+    // jarayonlararo COM chaqiruvi — hook ichida o'nlab millisekund
+    // kechikish beradi va Windows sekin hook'ni jimgina o'chirib
+    // qo'yadi. Shuning uchun ataylab ishlatilmadi: buning o'rniga
+    // foydalanuvchiga ochiq aytamiz (qo'llanma va shartlar oynasida) —
+    // parol yozishdan oldin Ctrl+Shift bilan o'chirib qo'yish kerak.
     static bool IsPasswordField()
     {
         try
@@ -1776,7 +1847,11 @@ public static class Program
         const int W = 560;                 // oyna kengligi
         const int IN = W - PAD * 2;        // ichki (matn) kengligi
 
-        Form f = BrandWindow("Qo'llanma", W, 540);
+        // Balandlik hisobi: sarlavha paneli 104 + ichki chekka (20 + 22) +
+        // mundarija ~480px (ogohlantirish ramkasi bilan birga) = ~636.
+        // Bu qiymatni mundarija o'zgarganda qayta hisoblash kerak, aks
+        // holda eng pastki qator ko'rinmay qoladi.
+        Form f = BrandWindow("Qo'llanma", W, 636);
         welcomeForm = f;
 
         Panel c = Content(f);
@@ -1804,7 +1879,24 @@ public static class Program
             c.Controls.Add(Lbl(steps[i], 30, y, IN - 30, 24, 10F, FontStyle.Regular, Ink));
             y += 30;
         }
-        y += 14;
+        y += 6;
+
+        // Parol haqida ogohlantirish — bu eng muhim amaliy maslahat, shuning
+        // uchun ko'zga tashlanadigan qilib alohida ramkada beramiz.
+        Panel warn = new Panel();
+        warn.SetBounds(0, y, IN, 58);
+        warn.BackColor = WarnBg;
+        warn.Paint += delegate (object s, PaintEventArgs e)
+        {
+            using (Pen p = new Pen(WarnBorder))
+                e.Graphics.DrawRectangle(p, 0, 0, warn.Width - 1, warn.Height - 1);
+        };
+        warn.Controls.Add(Lbl("Parol yozishdan oldin Ctrl + Shift bilan O'CHIRIB qo'ying.",
+                              14, 8, IN - 28, 20, 9.5F, FontStyle.Bold, WarnText));
+        warn.Controls.Add(Lbl("Brauzerdagi parol maydonlarini dastur tanib ololmaydi.",
+                              14, 30, IN - 28, 20, 9F, FontStyle.Regular, WarnText));
+        c.Controls.Add(warn);
+        y += 70;
 
         BrandCheck cb = new BrandCheck();
         cb.Text = "Keyingi safar bu oyna ko'rsatilmasin";
@@ -1986,7 +2078,9 @@ public static class Program
         tg.LinkClicked += delegate { OpenUrl("https://t.me/" + SupportTelegram.TrimStart('@')); };
         c.Controls.Add(tg); y += 26;
 
-        LinkLabel logLink = SupportLink("🗎    Xatolar jurnalini ochish", 0, y, IN);
+        // Belgi ATAYLAB "▤" (U+25A4) — Segoe UI'da mavjud. "🗎"/"📄" kabi
+        // belgilar bu shriftda yo'q va bo'sh kvadrat ("tofu") bo'lib chiqadi.
+        LinkLabel logLink = SupportLink("▤    Xatolar jurnalini ochish", 0, y, IN);
         logLink.LinkClicked += delegate { OpenErrorLog(); };
         c.Controls.Add(logLink); y += 40;
 

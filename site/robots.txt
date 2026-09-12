@@ -2,5 +2,6 @@
 # Haqiqiy domeningizni sotib olgach shu manzilni almashtiring.
 User-agent: *
 Allow: /
+Disallow: /admin/
 
 Sitemap: https://yangialif.uz/sitemap.xml

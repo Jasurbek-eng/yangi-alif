@@ -6,6 +6,7 @@
 <title>Yangi Alif — yangi lotin alifbosi yordamchisi</title>
 <meta name="description" content="Yozayotganda o'→ö, g'→ğ, sh→ş, ch→ç harflarini avtomatik almashtiradi. Windows uchun, bepul, internetga hech qachon ulanmaydi.">
 <meta name="theme-color" content="#487830">
+<script src="assets/theme-init.js?v=8c85787c1e"></script>
 <link rel="icon" href="assets/logo.png">
 <link rel="apple-touch-icon" href="assets/logo.png">
 
@@ -14,19 +15,54 @@
 <meta property="og:type" content="website">
 <meta property="og:title" content="Yangi Alif — yangi lotin alifbosi yordamchisi">
 <meta property="og:description" content="Yozayotganda o'→ö, g'→ğ, sh→ş, ch→ç harflarini avtomatik almashtiradi. Windows uchun, bepul, internetga hech qachon ulanmaydi.">
-<meta property="og:image" content="assets/logo.png">
+<meta property="og:image" content="assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
 <meta property="og:locale" content="uz_UZ">
-<meta name="twitter:card" content="summary">
+<meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Yangi Alif — yangi lotin alifbosi yordamchisi">
 <meta name="twitter:description" content="Yozayotganda o'→ö, g'→ğ, sh→ş, ch→ç harflarini avtomatik almashtiradi.">
-<meta name="twitter:image" content="assets/logo.png">
+<meta name="twitter:image" content="assets/og.png">
 <style>
   :root{
     --brand:#487830; --brand-dark:#2C5220; --brand-light:#7AAA50;
     --ok:#589638; --pale:#F2F7EE; --border:#CDE0C4;
     --ink:#262E22; --muted:#6C7668; --gold:#FACC15;
     --surface:#FFFFFF; --surface-2:#FAFCF8;
+    --header-bg:rgba(255,255,255,.82);
+    --shadow-soft:0 30px 60px -30px rgba(38,46,34,.25);
+    --warn-bg:#FFF8E6; --warn-border:#F3DFA0; --warn-text:#7A5B00;
+    /* Doim-qorong'i aksent kartalar (privacy, playground, "yuqoriga"
+       tugmasi) uchun — SAYT mavzusidan mustaqil, hech qachon o'zgarmaydi.
+       --brand-dark ISHLATILMAYDI, chunki u qorong'i rejimda OCH rangga
+       aylanadi — bu kartalarni "teskari" qilib qo'yardi. */
+    --accent-deep:#2C5220;
     --radius:16px; --maxw:1040px;
+    color-scheme:light;
+  }
+  /* Qorong'i rejim — tizim moyilligi bo'yicha avtomatik, yoki yuqori
+     o'ngdagi tugma bilan qo'lda tanlanadi (localStorage'da eslab qoladi). */
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --brand:#7AAA50; --brand-dark:#A8D082; --brand-light:#8FC15E;
+      --ok:#7AAA50; --pale:#1B2416; --border:#2E3B26;
+      --ink:#EAF0E4; --muted:#96A38C;
+      --surface:#12160E; --surface-2:#171C11;
+      --header-bg:rgba(18,22,14,.82);
+      --shadow-soft:0 30px 60px -30px rgba(0,0,0,.6);
+      --warn-bg:#2B2410; --warn-border:#544A22; --warn-text:#E8C874;
+      color-scheme:dark;
+    }
+  }
+  :root[data-theme="dark"]{
+    --brand:#7AAA50; --brand-dark:#A8D082; --brand-light:#8FC15E;
+    --ok:#7AAA50; --pale:#1B2416; --border:#2E3B26;
+    --ink:#EAF0E4; --muted:#96A38C;
+    --surface:#12160E; --surface-2:#171C11;
+    --header-bg:rgba(18,22,14,.82);
+    --shadow-soft:0 30px 60px -30px rgba(0,0,0,.6);
+    --warn-bg:#2B2410; --warn-border:#544A22; --warn-text:#E8C874;
+    color-scheme:dark;
   }
   *{box-sizing:border-box;}
   html{scroll-behavior:smooth; scroll-padding-top:84px;}
@@ -34,6 +70,21 @@
     margin:0; background:var(--surface);
     font-family:"Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
     color:var(--ink); line-height:1.55;
+    transition:background-color .25s ease, color .25s ease;
+  }
+
+  /* ---------- Sahifa yuqorisidagi aylantirish ko'rsatkichi ---------- */
+  .scroll-progress{
+    position:fixed; top:0; left:0; height:3px; width:0%; z-index:100;
+    background:linear-gradient(90deg, var(--brand-light), var(--brand));
+    transition:width .1s linear;
+  }
+
+  /* ---------- Nozik "don" (grain) tekstura — premium chuqurlik uchun ---------- */
+  body::before{
+    content:""; position:fixed; inset:0; z-index:0; pointer-events:none;
+    opacity:.035; mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   }
   a{color:var(--brand); text-decoration:none;}
   a:hover{text-decoration:underline;}
@@ -45,7 +96,7 @@
 
   .skip-link{
     position:absolute; left:-999px; top:auto; z-index:100;
-    background:var(--brand-dark); color:#fff; padding:12px 18px; border-radius:0 0 10px 0;
+    background:var(--accent-deep); color:#fff; padding:12px 18px; border-radius:0 0 10px 0;
     font-weight:700; font-size:14px;
   }
   .skip-link:focus{left:0; top:0;}
@@ -53,11 +104,25 @@
   /* ---------- Header ---------- */
   header{
     position:sticky; top:0; z-index:50;
-    background:rgba(255,255,255,.92); backdrop-filter:blur(8px);
+    background:var(--header-bg); backdrop-filter:blur(8px);
     border-bottom:1px solid var(--border);
+    transition:background-color .25s ease, border-color .25s ease;
+  }
+  .theme-btn{
+    width:38px; height:38px; border-radius:9px; border:1px solid var(--border);
+    background:var(--surface); color:var(--ink); cursor:pointer; font-size:16px;
+    display:flex; align-items:center; justify-content:center; padding:0;
+  }
+  .theme-btn:hover{border-color:var(--brand-light);}
+  .theme-btn .i-sun{display:none;}
+  :root[data-theme="dark"] .theme-btn .i-moon{display:none;}
+  :root[data-theme="dark"] .theme-btn .i-sun{display:block;}
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]) .theme-btn .i-moon{display:none;}
+    :root:not([data-theme="light"]) .theme-btn .i-sun{display:block;}
   }
   .nav{display:flex; align-items:center; justify-content:space-between; padding:14px 24px; max-width:var(--maxw); margin:0 auto;}
-  .brand{display:flex; align-items:center; gap:10px; font-weight:700; font-size:18px; color:var(--brand-dark);}
+  .brand{display:flex; align-items:center; gap:10px; font-weight:700; font-size:18px; color:var(--brand-dark); white-space:nowrap;}
   .brand img{width:34px; height:34px; border-radius:9px;}
   nav.links{display:flex; gap:28px; font-size:14.5px; font-weight:600;}
   nav.links a{color:var(--muted);}
@@ -92,12 +157,35 @@
 
   /* ---------- Hero ---------- */
   .hero{
-    background:
-      radial-gradient(900px 500px at 85% -10%, #eaf4e0 0%, transparent 60%),
-      linear-gradient(180deg, var(--surface-2), var(--surface) 70%);
+    position:relative; overflow:hidden;
+    background:linear-gradient(180deg, var(--surface-2), var(--surface) 70%);
     padding:88px 0 60px;
   }
-  .hero .wrap{display:grid; grid-template-columns:1.1fr .9fr; gap:56px; align-items:center;}
+  .aurora{position:absolute; inset:0; z-index:0; pointer-events:none; overflow:hidden;}
+  .aurora span{
+    position:absolute; border-radius:50%; filter:blur(70px); opacity:.35;
+    animation:drift 22s ease-in-out infinite alternate;
+  }
+  .aurora span:nth-child(1){
+    width:520px; height:520px; top:-220px; right:-120px;
+    background:radial-gradient(circle, var(--brand-light), transparent 70%);
+  }
+  .aurora span:nth-child(2){
+    width:420px; height:420px; top:60px; left:-160px; opacity:.22;
+    background:radial-gradient(circle, var(--gold), transparent 70%);
+    animation-delay:-9s; animation-duration:26s;
+  }
+  .aurora span:nth-child(3){
+    width:380px; height:380px; bottom:-200px; right:20%; opacity:.2;
+    background:radial-gradient(circle, var(--brand), transparent 70%);
+    animation-delay:-4s; animation-duration:19s;
+  }
+  @keyframes drift{
+    0%{transform:translate(0,0) scale(1);}
+    100%{transform:translate(30px,40px) scale(1.12);}
+  }
+  @media (prefers-reduced-motion: reduce){ .aurora span{animation:none;} }
+  .hero .wrap{position:relative; z-index:1; display:grid; grid-template-columns:1.1fr .9fr; gap:56px; align-items:center;}
   .eyebrow{
     display:inline-flex; align-items:center; gap:8px; padding:6px 14px; border-radius:999px;
     background:var(--pale); border:1px solid var(--border); color:var(--brand-dark);
@@ -111,7 +199,8 @@
   .cta-meta{font-size:13px; color:var(--muted);}
   .hero-card{
     background:var(--surface); border:1px solid var(--border); border-radius:20px;
-    padding:26px; box-shadow:0 30px 60px -30px rgba(38,46,34,.25);
+    padding:26px; box-shadow:var(--shadow-soft);
+    transition:background-color .25s ease, border-color .25s ease;
   }
   .demo-box{
     background:#1E2A17; border-radius:14px; overflow:hidden; margin-bottom:18px;
@@ -120,16 +209,25 @@
   .demo-bar{display:flex; align-items:center; gap:6px; padding:10px 14px; background:rgba(255,255,255,.04);}
   .demo-dot{width:9px; height:9px; border-radius:50%; display:inline-block;}
   .demo-label{margin-left:8px; font-size:11.5px; color:rgba(255,255,255,.45); font-weight:600;}
+  /* display:block (flex EMAS) — matn uzun bo'lsa o'zi yangi qatorga
+     o'tsin. Flex qatorida u o'ralmay, quti chetidan chiqib ketardi.
+     min-height esa uch qatorga yetadi: yozuv animatsiyasi davomida
+     matn o'sganda quti balandligi sakramaydi. */
   .demo-body{
-    padding:22px 18px 28px; min-height:52px; display:flex; align-items:center;
-    font-family:"Cascadia Code","Consolas",ui-monospace,monospace; font-size:19px; color:#EAF4E0;
+    padding:20px 18px 22px; min-height:94px;
+    font-family:"Cascadia Code","Consolas",ui-monospace,monospace;
+    font-size:17px; line-height:1.55; color:#EAF4E0; overflow-wrap:anywhere;
   }
-  .demo-cursor{display:inline-block; width:9px; height:20px; margin-left:3px; background:var(--brand-light); animation:blink 1s step-start infinite;}
+  .demo-cursor{
+    display:inline-block; width:8px; height:17px; margin-left:3px;
+    vertical-align:-2px; background:var(--brand-light);
+    animation:blink 1s step-start infinite;
+  }
   @keyframes blink{50%{opacity:0;}}
 
   /* ---------- "O'zingiz sinab ko'ring" — interaktiv maydon ---------- */
   .playground-wrap{
-    background:linear-gradient(160deg, var(--brand-dark), #16210F 120%);
+    background:linear-gradient(160deg, var(--accent-deep), #16210F 120%);
     border-radius:28px; padding:44px 40px 40px; position:relative; overflow:hidden;
   }
   .playground-wrap::before{
@@ -208,7 +306,7 @@
   }
 
   /* ---------- Privacy ---------- */
-  .privacy{background:var(--brand-dark); color:#fff; border-radius:24px; margin:0 24px; padding:56px 40px;}
+  .privacy{background:var(--accent-deep); color:#fff; border-radius:24px; margin:0 24px; padding:56px 40px;}
   .privacy .wrap{max-width:var(--maxw); margin:0 auto; padding:0; display:grid; grid-template-columns:1fr 1fr; gap:40px; align-items:center;}
   .privacy h2{font-size:28px; margin:0 0 14px;}
   .privacy p.lede2{color:#cfe3c2; font-size:15.5px; margin:0 0 6px;}
@@ -218,11 +316,17 @@
     flex:none; width:22px; height:22px; border-radius:50%; background:rgba(255,255,255,.12);
     display:flex; align-items:center; justify-content:center; font-size:12px; margin-top:1px;
   }
+  .priv-note{
+    grid-column:1 / -1; margin:26px 0 0; padding:14px 16px; border-radius:10px;
+    background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.13);
+    color:#D7E7CB; font-size:13.5px; line-height:1.6;
+  }
+  .priv-note a{color:#fff; text-decoration:underline;}
 
   /* ---------- Download ---------- */
   .downloads{display:grid; grid-template-columns:1.15fr .85fr; gap:22px;}
   .dl-card{border:1px solid var(--border); border-radius:var(--radius); padding:30px; background:var(--surface-2);}
-  .dl-card.primary{border-color:var(--brand-light); background:linear-gradient(180deg,#f5faf1,var(--surface-2));}
+  .dl-card.primary{border-color:var(--brand-light); background:linear-gradient(180deg,var(--pale),var(--surface-2));}
   .dl-tag{
     display:inline-block; font-size:11.5px; font-weight:800; letter-spacing:.04em; text-transform:uppercase;
     color:var(--brand-dark); background:var(--pale); border:1px solid var(--border); border-radius:999px; padding:4px 10px; margin-bottom:14px;
@@ -232,8 +336,8 @@
   .dl-meta{display:flex; gap:14px; font-size:13px; color:var(--muted); margin-top:14px; flex-wrap:wrap;}
   .dl-meta span{display:flex; align-items:center; gap:6px;}
   .note{
-    margin-top:18px; padding:12px 14px; border-radius:10px; background:#FFF8E6;
-    border:1px solid #F3DFA0; color:#7A5B00; font-size:13px;
+    margin-top:18px; padding:12px 14px; border-radius:10px; background:var(--warn-bg);
+    border:1px solid var(--warn-border); color:var(--warn-text); font-size:13px;
   }
   .hash-row{
     display:flex; align-items:center; gap:8px; margin-top:14px; padding-top:14px;
@@ -279,7 +383,7 @@
   /* ---------- Yuqoriga qaytish ---------- */
   .top-btn{
     position:fixed; right:22px; bottom:22px; z-index:40;
-    width:44px; height:44px; border-radius:50%; background:var(--brand-dark); color:#fff;
+    width:44px; height:44px; border-radius:50%; background:var(--accent-deep); color:#fff;
     display:flex; align-items:center; justify-content:center; font-size:18px;
     box-shadow:0 10px 24px -8px rgba(38,46,34,.45);
     opacity:0; pointer-events:none; transform:translateY(8px);
@@ -306,10 +410,24 @@
     .playground{grid-template-columns:1fr;}
     .pg-arrow{transform:rotate(90deg); margin:-4px auto;}
     .playground-wrap{margin:0 16px; border-radius:22px; padding:34px 22px 28px;}
+    /* Tor ekranda namuna matni uch qatorga sig'adi — quti balandligi
+       shunga moslab oldindan belgilanadi, aks holda yozuv animatsiyasi
+       davomida quti "sakrab", ostidagi butun sahifa siljib turadi. */
+    .demo-body{min-height:122px;}
+  }
+
+  /* Tor telefonlarda sarlavhaga brend + tema tugmasi + "Yuklab olish" +
+     menyu sig'maydi — matnlar ikki qatorga bo'linib, sarlavha bo'yiga
+     cho'zilib ketadi. Shuning uchun bu yerda sarlavhadagi "Yuklab olish"
+     tugmasini yashiramiz: u menyuda ham, hero qismida ham bor. */
+  @media (max-width:560px){
+    .nav .btn-primary.btn-small{display:none;}
   }
 </style>
 </head>
 <body>
+
+<div class="scroll-progress" id="scrollProgress"></div>
 
 <a class="skip-link" href="#main">Asosiy matnga o'tish</a>
 
@@ -324,6 +442,10 @@
       <a href="#faq">Savollar</a>
     </nav>
     <div style="display:flex; align-items:center; gap:10px;">
+      <button class="theme-btn" id="themeBtn" type="button" aria-label="Qorong'i/yorug' rejim">
+        <svg class="i-moon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+        <svg class="i-sun" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+      </button>
       <a class="btn btn-primary btn-small" href="#yuklab-olish">Yuklab olish</a>
       <button class="menu-btn" id="menuBtn" aria-label="Menyu" aria-expanded="false" aria-controls="navLinks">
         <span></span><span></span><span></span>
@@ -342,6 +464,7 @@
 <main id="main">
 
 <section class="hero">
+  <div class="aurora" aria-hidden="true"><span></span><span></span><span></span></div>
   <div class="wrap">
     <div>
       <div class="eyebrow"><span class="dot"></span> Windows uchun · Bepul</div>
@@ -451,8 +574,9 @@
           <li><span class="check">✓</span> Yozganlaringiz hech qayerga saqlanmaydi</li>
           <li><span class="check">✓</span> Faylga yozilmaydi, hech kimga yuborilmaydi</li>
           <li><span class="check">✓</span> Dastur internetga umuman ulanmaydi</li>
-          <li><span class="check">✓</span> Parol maydonlariga tegmaydi</li>
+          <li><span class="check">✓</span> Hisob yaratish, ro'yxatdan o'tish shart emas</li>
         </ul>
+        <p class="priv-note">Parollar haqida: dastur Windows'ning oddiy parol maydonlarida o'zi to'xtaydi, lekin <b>brauzerdagi</b> parol maydonlarini texnik jihatdan tanib bo'lmaydi. Parol yozishdan oldin <b>Ctrl + Shift</b> bilan o'chirib qo'ying — <a href="#faq">batafsil</a>.</p>
       </div>
     </div>
   </div>
@@ -522,6 +646,10 @@
         <p>Yo'q, butunlay bepul. Uni erkin ishlatishingiz va do'stlaringizga tavsiya qilishingiz mumkin.</p>
       </details>
       <details>
+        <summary>Parol yozganimda nima bo'ladi?</summary>
+        <p>Dastur Windows'ning <b>klassik</b> parol maydonlarini (masalan Windows tizim oynalari, eski dasturlar) tanib, u yerda o'zi to'xtaydi. Lekin <b>brauzerdagi</b> (Chrome, Firefox, Edge) va Telegram Desktop, Discord kabi dasturlardagi parol maydonlarini texnik jihatdan tanib bo'lmaydi — Windows'ga ular oddiy matn maydoni bo'lib ko'rinadi. Shuning uchun parol yozishdan oldin <b>Ctrl + Shift</b> bilan dasturni o'chirib qo'ying. Aks holda parolingizdagi "sh", "ch", "o'", "g'" harflari almashib, hisobingizga kira olmay qolishingiz mumkin. Parol menejerlari (KeePass, Bitwarden, 1Password va h.k.) esa standart holatda istisnolar ro'yxatiga kiritilgan.</p>
+      </details>
+      <details>
         <summary>Mening yozganlarimni ko'radimi yoki saqlaydimi?</summary>
         <p>Yo'q. Dastur klaviaturani FAQAT harf almashtirish uchun kuzatadi, hech narsani faylga yozmaydi va internetga umuman ulanmaydi.</p>
       </details>
@@ -568,6 +696,6 @@
   <div class="wrap foot-bottom">© Xasanov Jasurbek. Barcha huquqlar himoyalangan.</div>
 </footer>
 
-<script src="assets/main.js?v=1.2"></script>
+<script src="assets/main.js?v=63c57ddbd9"></script>
 </body>
 </html>

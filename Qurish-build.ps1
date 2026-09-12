@@ -149,6 +149,69 @@ if (Test-Path (Join-Path $dir 'site\index.html')) {
     New-Item -ItemType Directory -Path $siteDl -Force | Out-Null
     Copy-Item $exe (Join-Path $siteDl 'YangiAlif.exe') -Force
 
+    # --- Sayt rasmlari ---
+    # Logo.png asli 372x372 (~113 KB), saytda esa 34px da ko'rsatiladi.
+    # Shuncha katta faylni yuklash — ayniqsa mobil internetda — ortiqcha,
+    # shuning uchun web uchun kichik nusxa tayyorlaymiz.
+    $siteAssets = Join-Path $dir 'site\assets'
+    New-Item -ItemType Directory -Path $siteAssets -Force | Out-Null
+    if ($hasLogo) {
+        $small = New-Object System.Drawing.Bitmap(96, 96)
+        $gs = [System.Drawing.Graphics]::FromImage($small)
+        $gs.InterpolationMode = 'HighQualityBicubic'
+        $gs.DrawImage($logoImg, (New-Object System.Drawing.Rectangle(0, 0, 96, 96)))
+        $gs.Dispose()
+        $small.Save((Join-Path $siteAssets 'logo.png'), [System.Drawing.Imaging.ImageFormat]::Png)
+        $small.Dispose()
+
+        # Ijtimoiy tarmoqlarda ulashilganda ko'rinadigan rasm (Telegram,
+        # Facebook va h.k. 1200x630 o'lchamni kutadi — kvadrat logotip
+        # u yerda kichkina va bo'sh ko'rinadi).
+        $og = New-Object System.Drawing.Bitmap(1200, 630)
+        $g2 = [System.Drawing.Graphics]::FromImage($og)
+        $g2.SmoothingMode = 'AntiAlias'
+        $g2.TextRenderingHint = 'AntiAliasGridFit'
+        $ogRect = New-Object System.Drawing.Rectangle(0, 0, 1200, 630)
+        $bg = New-Object System.Drawing.Drawing2D.LinearGradientBrush(
+            $ogRect,
+            [System.Drawing.Color]::FromArgb(44, 82, 32),
+            [System.Drawing.Color]::FromArgb(22, 33, 15), 145)
+        $g2.FillRectangle($bg, $ogRect)
+        $g2.InterpolationMode = 'HighQualityBicubic'
+        $g2.DrawImage($logoImg, (New-Object System.Drawing.Rectangle(90, 96, 150, 150)))
+
+        $fTitle = New-Object System.Drawing.Font('Segoe UI', 62, [System.Drawing.FontStyle]::Bold)
+        $fSub   = New-Object System.Drawing.Font('Segoe UI', 30)
+        $white  = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::White)
+        $mint   = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(207, 227, 194))
+        $lime   = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(154, 205, 106))
+        $g2.DrawString('Yangi Alif', $fTitle, $white, 268, 96)
+        $g2.DrawString('Yangi lotin alifbosi yordamchisi', $fSub, $mint, 276, 192)
+
+        # Qoidalar qatori: shriftni o'lchab, rasm kengligiga SIG'GUNCHA
+        # kichraytiramiz — aks holda matn o'ng chetdan chiqib ketadi
+        # (qo'lda tanlangan o'lcham boshqa Windows'da boshqacha chiqishi mumkin).
+        $ruleText = "o'  →  ö      g'  →  ğ      sh  →  ş      ch  →  ç"
+        $ruleMargin = 92
+        $ruleMaxW = 1200 - ($ruleMargin * 2)
+        $ruleSize = 46
+        do {
+            if ($fRule) { $fRule.Dispose() }
+            $fRule = New-Object System.Drawing.Font('Segoe UI', $ruleSize, [System.Drawing.FontStyle]::Bold)
+            $ruleW = $g2.MeasureString($ruleText, $fRule).Width
+            $ruleSize -= 2
+        } while ($ruleW -gt $ruleMaxW -and $ruleSize -gt 14)
+        $g2.DrawString($ruleText, $fRule, $lime, $ruleMargin, 352)
+
+        $g2.DrawString('Windows uchun  ·  Bepul  ·  Internetga ulanmaydi',
+                       $fSub, $mint, 96, 468)
+        $og.Save((Join-Path $siteAssets 'og.png'), [System.Drawing.Imaging.ImageFormat]::Png)
+        $g2.Dispose(); $og.Dispose()
+        $bg.Dispose(); $fTitle.Dispose(); $fSub.Dispose(); $fRule.Dispose()
+        $white.Dispose(); $mint.Dispose(); $lime.Dispose()
+        Write-Host "   Sayt rasmlari: logo.png (96px) + og.png (1200x630)" -ForegroundColor Green
+    }
+
     $stage = Join-Path ([System.IO.Path]::GetTempPath()) 'YangiAlif-portable-build'
     New-Item -ItemType Directory -Path $stage -Force | Out-Null
     Copy-Item (Join-Path $dir 'YangiAlif.cs')  $stage -Force
@@ -192,8 +255,12 @@ Yoki (cmd'da):
     $checksumJson = "{`"version`":`"$AppVersion`",`"exe`":{`"sha256`":`"$exeHash`",`"bytes`":$((Get-Item (Join-Path $siteDl 'YangiAlif.exe')).Length)},`"zip`":{`"sha256`":`"$zipHash`",`"bytes`":$((Get-Item $zipPath).Length)}}"
     Set-Content -Path (Join-Path $siteDl 'checksums.json') -Value $checksumJson -Encoding UTF8 -NoNewline
 
-    # main.js'ni versiya belgisi (?v=) bilan chaqiramiz — shunda foydalanuvchi
-    # brauzeri yangilangan faylni eski keshdan emas, qaytadan yuklaydi.
+    # Har bir JS faylni o'z MAZMUNIGA bog'liq ?v= belgisi bilan chaqiramiz —
+    # AppVersion'ga EMAS. Sabab: sayt fayllari (main.js, theme-init.js)
+    # ilova versiyasidan MUSTAQIL ravishda ham yangilanishi mumkin — agar
+    # ?v= faqat AppVersion'ga bog'liq bo'lsa, ilova versiyasi o'zgarmagan
+    # holda saytga kiritilgan tuzatish avvalgi tashrif buyurgan
+    # foydalanuvchi brauzerining ESKI KESHIDA qolib ketadi.
     #
     # MUHIM: Get-Content/Set-Content -Encoding UTF8 ISHLATILMAYDI — Windows
     # PowerShell 5.1'da Get-Content'ning standart o'qish kodировkasi UTF-8
@@ -203,7 +270,25 @@ Yoki (cmd'da):
     $indexPath = Join-Path $dir 'site\index.html'
     $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
     $indexHtml = [System.IO.File]::ReadAllText($indexPath, [System.Text.Encoding]::UTF8)
-    $indexHtml = $indexHtml -replace 'assets/main\.js(\?v=[^"]*)?"', "assets/main.js?v=$AppVersion`""
+
+    function Get-ShortHash([string]$path) {
+        $bytes = [System.IO.File]::ReadAllBytes($path)
+        $sha = [System.Security.Cryptography.SHA256]::Create()
+        try { ($sha.ComputeHash($bytes) | ForEach-Object { $_.ToString('x2') }) -join '' | ForEach-Object { $_.Substring(0, 10) } }
+        finally { $sha.Dispose() }
+    }
+    foreach ($jsName in @('main.js', 'theme-init.js')) {
+        $jsPath = Join-Path $dir "site\assets\$jsName"
+        if (Test-Path $jsPath) {
+            $jsHash = Get-ShortHash $jsPath
+            $escaped = [regex]::Escape($jsName)
+            # MUHIM: ${jsName}?v= — figurali qavs SHART. "$jsName?v="
+            # yozilsa, PowerShell "?" belgisini o'zgaruvchi nomining
+            # DAVOMI deb tushunib, butun ifodani bo'sh satrga aylantiradi
+            # (haqiqiy, sinovdan o'tkazilgan PowerShell xatti-harakati).
+            $indexHtml = $indexHtml -replace "assets/${escaped}(\?v=[^`"]*)?`"", "assets/${jsName}?v=${jsHash}`""
+        }
+    }
     [System.IO.File]::WriteAllText($indexPath, $indexHtml, $utf8NoBom)
 
     Write-Host "   Sayt fayllari tayyor (site/downloads/) — SHA-256 hisoblandi" -ForegroundColor Green
