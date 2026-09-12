@@ -1,7 +1,11 @@
 ﻿// ============================================================
 //  YANGI_ALIF  —  yangi alifbo yordamchisi
-//  Muallif: Xasanov Jasurbek
-//  (c) Mualliflik huquqi himoyalangan.
+//  Copyright 2026 Xasanov Jasurbek
+//
+//  Licensed under the Apache License, Version 2.0 (the "License");
+//  you may not use this file except in compliance with the License.
+//  You may obtain a copy of the License at
+//      http://www.apache.org/licenses/LICENSE-2.0
 //
 //  Yozayotgan paytda harflarni avtomatik almashtiradi:
 //      o' → ö     g' → ğ     sh → ş     ch → ç
@@ -824,18 +828,25 @@ public static class Program
             "\r\n" +
             "FOYDALANISH SHARTLARI\r\n" +
             "\r\n" +
-            "Dastur bepul tarqatiladi. Uni erkin ishlatishingiz va\r\n" +
-            "do'stlaringizga berishingiz mumkin.\r\n" +
+            "Dastur BEPUL va OCHIQ KODLI — Apache License 2.0\r\n" +
+            "litsenziyasi asosida tarqatiladi.\r\n" +
             "\r\n" +
-            "Dasturni sotish, o'zgartirish yoki o'z nomingizdan\r\n" +
-            "tarqatish taqiqlanadi.\r\n" +
+            "   •  Erkin ishlatishingiz va tarqatishingiz mumkin\r\n" +
+            "   •  Kodini ko'rishingiz va o'zgartirishingiz mumkin\r\n" +
+            "   •  Muallif nomi ko'rsatilishi shart\r\n" +
+            "   •  \"Yangi Alif\" nomi va logotipi muallifga tegishli\r\n" +
+            "      (litsenziyaning 6-bandi)\r\n" +
             "\r\n" +
-            "Muallif dastur ishlatilishidan kelib chiqadigan zarar uchun\r\n" +
-            "javobgar emas.\r\n" +
+            "Dastur \"BOR HOLICHA\" beriladi — muallif undan kelib\r\n" +
+            "chiqadigan zarar uchun javobgar emas.\r\n" +
+            "\r\n" +
+            "To'liq litsenziya matni:\r\n" +
+            "https://www.apache.org/licenses/LICENSE-2.0\r\n" +
             "\r\n" +
             "MUALLIFLIK HUQUQI\r\n" +
             "\r\n" +
-            "© " + AppAuthor + ". Barcha huquqlar himoyalangan.\r\n" +
+            "© 2026 " + AppAuthor + "\r\n" +
+            "Manba kodi: github.com/Jasurbek-eng/yangi-alif\r\n" +
             "Aloqa: " + SupportEmail + "  ·  " + SupportTelegram + "\r\n";
         tb.Select(0, 0);
         wizBody.Controls.Add(tb);
@@ -2044,7 +2055,7 @@ public static class Program
         c.Controls.Add(Lbl(AppName + "   " + AppVer, 0, y, IN, 28, 13F, FontStyle.Bold, Ink));   y += 30;
         c.Controls.Add(Lbl(Tagline, 0, y, IN, 20, 9.5F, FontStyle.Regular, Muted));              y += 30;
         c.Controls.Add(Lbl("Muallif:   " + AppAuthor, 0, y, IN, 22, 10F, FontStyle.Regular, Ink)); y += 22;
-        c.Controls.Add(Lbl("© Mualliflik huquqi himoyalangan.", 0, y, IN, 20, 9F, FontStyle.Regular, Muted));
+        c.Controls.Add(Lbl("Apache License 2.0 — ochiq kodli, bepul", 0, y, IN, 20, 9F, FontStyle.Regular, Muted));
         y += 36;
 
         Panel priv = new Panel();

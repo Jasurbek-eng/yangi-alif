@@ -207,4 +207,13 @@ Dastur internetga umuman ulanmaydi.
 
 ---
 
-© Xasanov Jasurbek. Mualliflik huquqi himoyalangan.
+## Litsenziya
+
+[Apache License 2.0](LICENSE) — bepul, ochiq kodli.
+
+Kodni erkin ishlatishingiz, o'zgartirishingiz va tarqatishingiz mumkin;
+muallif nomi ko'rsatilishi shart. **"Yangi Alif" nomi va logotipi** esa
+muallifga tegishli va litsenziya ularni ishlatish huquqini bermaydi
+(litsenziyaning 6-bandi).
+
+© 2026 Xasanov Jasurbek
