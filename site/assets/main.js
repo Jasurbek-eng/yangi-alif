@@ -48,37 +48,71 @@
     return frames;
   }
 
-  // ---------- Yuklab olish tugmalari ostidagi SHA-256 va hajm ----------
-  // downloads/checksums.json'dan o'qiydi (Qurish-build.ps1 har build'da
-  // yangilaydi). Fayl topilmasa (hali qurilmagan bo'lsa) jimgina o'tkazib
-  // yuboradi.
+  // ---------- Yuklab olish tugmalari ostidagi SHA-256, hajm va versiya ----------
+  // Asosiy manba — GitHub'dagi ENG SO'NGGI reliz. Yuklab olish tugmalari ham
+  // aynan o'sha relizga ishora qiladi, shuning uchun ko'rsatilgan SHA-256 va
+  // hajm HAR DOIM yuklanadigan fayl bilan bir xil bo'ladi. GitHub javob
+  // bermasa (masalan soatlik so'rov chegarasi), mahalliy
+  // downloads/checksums.json'ga qaytamiz (sayt GitHub'siz joylanganda).
+  var GH_LATEST = 'https://api.github.com/repos/Jasurbek-eng/yangi-alif/releases/latest';
+  var ASSET_NAMES = { exe: 'YangiAlif.exe', zip: 'YangiAlif-portable.zip' };
+
   function fmtSize(bytes) {
     if (!bytes) return null;
     return (bytes / 1024).toFixed(1).replace(/\.0$/, '') + ' KB';
   }
-  // MUHIM: cache:'no-store' — bu fayl HAR build'da o'zgaradi (versiya,
-  // checksum), shuning uchun brauzer keshidan emas, doim yangisini olamiz.
-  fetch('downloads/checksums.json', { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : null; })
-    .then(function (data) {
-      if (!data) return;
-      ['exe', 'zip'].forEach(function (key) {
-        var info = data[key];
-        if (!info) return;
-        var hashEl = document.querySelector('[data-hash-for="' + key + '"]');
-        if (hashEl) hashEl.textContent = info.sha256;
-        // querySelectorAll: bir xil data-size-for="exe" bir nechta joyda
-        // (hero'da va yuklab olish kartasida) ishlatilishi mumkin.
-        var sizeText = fmtSize(info.bytes);
-        if (sizeText) {
-          document.querySelectorAll('[data-size-for="' + key + '"]').forEach(function (el) {
-            el.textContent = '~' + sizeText;
-          });
+
+  function applyInfo(data) {
+    if (!data) return;
+    ['exe', 'zip'].forEach(function (key) {
+      var info = data[key];
+      if (!info) return;
+      var hashEl = document.querySelector('[data-hash-for="' + key + '"]');
+      if (hashEl) {
+        hashEl.textContent = info.sha256 || "reliz sahifasidagi checksums.txt'ga qarang";
+      }
+      // querySelectorAll: bir xil data-size-for="exe" bir nechta joyda
+      // (hero'da va yuklab olish kartasida) ishlatilishi mumkin.
+      var sizeText = fmtSize(info.bytes);
+      if (sizeText) {
+        document.querySelectorAll('[data-size-for="' + key + '"]').forEach(function (el) {
+          el.textContent = '~' + sizeText;
+        });
+      }
+    });
+    var verEl = document.getElementById('appVersion');
+    if (verEl && data.version) verEl.textContent = 'v' + data.version;
+  }
+
+  // GitHub API javobini checksums.json bilan bir xil ko'rinishga keltiradi.
+  // "digest" maydoni — GitHub'ning o'zi hisoblagan SHA-256.
+  function fromGitHub(rel) {
+    if (!rel || !rel.assets) return null;
+    var data = { version: String(rel.tag_name || '').replace(/^v/, '') };
+    Object.keys(ASSET_NAMES).forEach(function (key) {
+      rel.assets.forEach(function (a) {
+        if (a.name === ASSET_NAMES[key]) {
+          data[key] = { sha256: String(a.digest || '').replace(/^sha256:/, '') || null, bytes: a.size };
         }
       });
-      var verEl = document.getElementById('appVersion');
-      if (verEl && data.version) verEl.textContent = 'v' + data.version;
+    });
+    return data.exe ? data : null;
+  }
+
+  function loadLocal() {
+    return fetch('downloads/checksums.json', { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(applyInfo);
+  }
+
+  fetch(GH_LATEST, { cache: 'no-store' })
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (rel) {
+      var data = fromGitHub(rel);
+      if (data) applyInfo(data); else return loadLocal();
     })
-    .catch(function () { /* checksums.json hali yo'q — sukut bo'yicha matn qoladi */ });
+    .catch(function () { return loadLocal(); })
+    .catch(function () { /* hech biri bo'lmasa — sukut bo'yicha matn qoladi */ });
 
   document.querySelectorAll('.copy-btn').forEach(function (btn) {
     btn.addEventListener('click', function () {

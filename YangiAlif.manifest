@@ -1,7 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
 
-  <assemblyIdentity version="1.0.0.0" name="YangiAlif.app" type="win32" />
+  <assemblyIdentity version="1.2.1.0" name="YangiAlif.app" type="win32" />
   <description>Yangi Alif — yangi alifbo yordamchisi</description>
 
   <!-- Administrator huquqi SO'RALMAYDI: oddiy foydalanuvchi sifatida ishlaydi.

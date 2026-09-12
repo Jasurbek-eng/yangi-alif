@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 #  Dastur oynalarining suratini oladi (sayt va README uchun).
 #
 #  Oynalar EKRANGA CHIQARILMAYDI — to'g'ridan-to'g'ri rasmga

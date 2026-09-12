@@ -219,7 +219,7 @@ public static class Program
 {
     // ---------- Mahsulot ----------
     public const string AppName   = "Yangi Alif";
-    public const string AppVer    = "1.2";
+    public const string AppVer    = "1.2.1";
     public const string AppAuthor = "Xasanov Jasurbek";
     public const string Tagline   = "Yangi alifbo yordamchisi";
 
@@ -455,7 +455,7 @@ public static class Program
     static bool   justReplaced = false;
     static string lastOrig     = "";
     static int    lastKeyTick  = 0;
-    static bool   csArmed = false, csDirty = false, csSuppressModUp = false;
+    static bool   csArmed = false, csDirty = false;
 
     static IntPtr hookId = IntPtr.Zero, mouseHookId = IntPtr.Zero;
     static HookProc keyProc = HookCallback, mouseProc = MouseCallback;
@@ -933,6 +933,25 @@ public static class Program
         {
             if (!Path.IsPathRooted(p)) throw new Exception("To'liq yo'l ko'rsating (masalan C:\\...).");
 
+            // XAVFSIZLIK: dastur faqat O'Z papkasiga o'rnatilishi kerak.
+            // Foydalanuvchi manzilni qo'lda yozishi mumkin (masalan
+            // "C:\Users\Ali\Desktop" yoki "D:\") — shunday papkaga to'g'ridan-
+            // to'g'ri o'rnatish uning boshqa fayllari bilan aralashib ketardi.
+            // Ichida boshqa narsa bor papka tanlansa, ichida alohida
+            // "YangiAlif" papkasini taklif qilamiz.
+            if (Directory.Exists(p) && !IsOwnOrEmptyDir(p))
+            {
+                string sub = Path.Combine(p, "YangiAlif");
+                wizPath.Text = sub;   // TextChanged -> chosenPath ham yangilanadi
+                MessageBox.Show(
+                    "Tanlangan papkada boshqa fayllar bor:\n\n" + p +
+                    "\n\nDastur boshqa fayllaringiz bilan aralashmasligi uchun manzil " +
+                    "alohida papkaga o'zgartirildi:\n\n" + sub +
+                    "\n\nTekshirib, qaytadan \"O'rnatish\" tugmasini bosing.",
+                    AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return false;
+            }
+
             // Yozish huquqi bormi — sinab ko'ramiz
             Directory.CreateDirectory(p);
             string probe = Path.Combine(p, ".yangialif_sinov");
@@ -948,6 +967,21 @@ public static class Program
                 AppName, MessageBoxButtons.OK, MessageBoxIcon.Warning);
             return false;
         }
+    }
+
+    // Papka bo'shmi yoki unda faqat bizning faylimiz (qayta o'rnatishda) bormi?
+    static bool IsOwnOrEmptyDir(string dir)
+    {
+        try
+        {
+            foreach (string e in Directory.GetFileSystemEntries(dir))
+            {
+                if (!Path.GetFileName(e).Equals("YangiAlif.exe", StringComparison.OrdinalIgnoreCase))
+                    return false;
+            }
+            return true;
+        }
+        catch { return false; }
     }
 
     // ---------- 4-qadam: o'rnatilmoqda ----------
@@ -1201,17 +1235,26 @@ public static class Program
             // shu nomga ishora (symlink) tayyorlab qo'yishi qiyinlashadi.
             string bat = Path.Combine(Path.GetTempPath(),
                 "yangialif_cleanup_" + Guid.NewGuid().ToString("N") + ".bat");
+
+            // XAVFSIZLIK: papkani BUTUNLAY (rd /s) o'chirmaymiz. Faqat o'zimiz
+            // qo'ygan YangiAlif.exe o'chiriladi, papka esa BO'SH qolsagina
+            // olib tashlanadi (rd /s'siz — ichida boshqa narsa bo'lsa, Windows
+            // uni o'chirmaydi). Avval "rd /s /q" edi: foydalanuvchi o'rnatish
+            // joyiga masalan "C:\Users\Ali\Desktop" deb yozgan bo'lsa, o'chirishda
+            // butun ish stoli yo'q bo'lib ketardi.
+            string exeToDelete = Path.Combine(safeDir, "YangiAlif.exe");
             File.WriteAllText(bat,
                 "@echo off\r\n" +
                 "setlocal\r\n" +
                 "set n=0\r\n" +
                 ":retry\r\n" +
                 "ping 127.0.0.1 -n 2 >nul\r\n" +
-                "rd /s /q \"" + safeDir + "\" >nul 2>&1\r\n" +
-                "if not exist \"" + safeDir + "\" goto done\r\n" +
+                "del /f /q \"" + exeToDelete + "\" >nul 2>&1\r\n" +
+                "if not exist \"" + exeToDelete + "\" goto rmdir\r\n" +
                 "set /a n+=1\r\n" +
                 "if %n% lss 10 goto retry\r\n" +
-                ":done\r\n" +
+                ":rmdir\r\n" +
+                "rd \"" + safeDir + "\" >nul 2>&1\r\n" +
                 "del /f /q \"%~f0\" >nul 2>&1\r\n");
             System.Diagnostics.ProcessStartInfo psi = new System.Diagnostics.ProcessStartInfo(bat);
             psi.WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden;
@@ -1363,37 +1406,52 @@ public static class Program
                     bool isShift = (vk == VK_SHIFT   || vk == VK_LSHIFT || vk == VK_RSHIFT);
                     bool isCtrl  = (vk == VK_CONTROL || vk == VK_LCTRL  || vk == VK_RCTRL);
 
-                    // Ctrl+Shift "toza bosish". Bosilayotgan tugmaning o'zi hook ichida
-                    // hali "bosilgan" ko'rinmasligi mumkin -> IKKINCHI tugmani tekshiramiz.
+                    // Ctrl+Shift "toza bosish" (orada boshqa tugma bosilmagan).
+                    //
+                    // Hook ichida tugmaning O'Z holati hali yangilanmagan bo'ladi
+                    // (sinab tasdiqlangan): birinchi bosishda "bosilmagan",
+                    // avto-takrorda "bosilgan", qo'yib yuborishda esa hali
+                    // "bosilgan" ko'rinadi. Shuning uchun:
+                    //   - avto-takrorni o'z holati orqali ajratamiz (repeat);
+                    //   - "ikkinchisi ham bosilganmi?" savolini DOIM boshqa
+                    //     tugmadan so'raymiz.
                     if (keyDown)
                     {
                         if (isShift || isCtrl)
                         {
-                            bool other = isShift ? Down(VK_CONTROL) : Down(VK_SHIFT);
-                            if (other) { csArmed = true; csDirty = false; }
+                            bool repeat = Down(vk);
+                            bool other  = isShift ? Down(VK_CONTROL) : Down(VK_SHIFT);
+                            if (other && !repeat)
+                            {
+                                csArmed = true; csDirty = false;
+
+                                // Ko'p kompyuterlarda Ctrl+Shift klaviatura TILINI
+                                // almashtiradi. Windows buni faqat ikkala tugma
+                                // "toza" (orada boshqa tugmasiz) qo'yib yuborilganda
+                                // qiladi. Tugmalar hali bosilgan paytda ma'nosiz
+                                // "niqob" tugma yuboramiz — Windows buni endi
+                                // Ctrl+Shift+<boshqa tugma> deb ko'radi va tilni
+                                // almashtirmaydi (AutoHotkey'dagi "mask key" usuli).
+                                //
+                                // DIQQAT: v1.2 buning o'rniga tugmalarning "yuqoriga"
+                                // hodisasini YUTARDI. Bu Ctrl va Shift'ni tizimda
+                                // bosilgan holda QOTIRIB qo'yardi (sinab tasdiqlangan).
+                                // Past darajali hook'da "yuqoriga" hodisasini hech
+                                // qachon yutmang.
+                                QueueMaskKey();
+                            }
                         }
                         else if (Down(VK_CONTROL) || Down(VK_SHIFT))
                         { csDirty = true; csArmed = false; }
                     }
                     if (keyUp && (isShift || isCtrl))
                     {
-                        if (csArmed && !csDirty) { csArmed = false; Toggle(); csSuppressModUp = true; }
-                        bool bothUp = !Down(VK_CONTROL) && !Down(VK_SHIFT);
-                        if (bothUp) { csArmed = false; csDirty = false; }
+                        if (csArmed && !csDirty) { csArmed = false; Toggle(); }
 
-                        // MUHIM: Windows'ning ko'plab tizimlarida "Ctrl+Shift" —
-                        // klaviatura TILINI almashtirish uchun standart tugma
-                        // birikmasi (Sozlamalar > Til > Qo'shimcha klaviatura
-                        // sozlamalari). Bizning YOQISH/O'CHIRISH birikmamiz aynan
-                        // shu bilan bir xil, shuning uchun ikkala tugma ham
-                        // batamom qo'yib yuborilmaguncha ularning "yuqoriga"
-                        // hodisasini uzatmaymiz — aks holda YangiAlif yoqilganda
-                        // klaviatura tili ham kutilmaganda almashib ketadi.
-                        if (csSuppressModUp)
-                        {
-                            if (bothUp) csSuppressModUp = false;
-                            return (IntPtr)1;
-                        }
+                        // Qo'yib yuborilayotgan tugma hook ichida hali "bosilgan"
+                        // ko'rinadi — shuning uchun faqat IKKINCHISIGA qaraymiz.
+                        bool otherDown = isShift ? Down(VK_CONTROL) : Down(VK_SHIFT);
+                        if (!otherDown) { csArmed = false; csDirty = false; }
                     }
 
                     if (enabled && keyDown && ProcessKey(vk)) return (IntPtr)1;
@@ -1498,6 +1556,25 @@ public static class Program
             inp[i++] = Kb(0, (ushort)c, KEYEVENTF_UNICODE | KEYEVENTF_KEYUP);
         }
         injectQueue.Enqueue(inp);
+        injectTimer.Start();
+    }
+
+    // Ma'nosiz "niqob" tugma: VK 0xE8 Windows'da hech narsaga biriktirilmagan
+    // (AutoHotkey ham aynan shu kodni ishlatadi). Ctrl+Shift bosib turilgan
+    // paytda yuborilsa, Windows bu birikmani "toza" deb hisoblamaydi va
+    // klaviatura tilini almashtirmaydi.
+    //
+    // MUHIM: navbat + taymer orqali (hook TUGAGACH) yuboriladi. Hook ichidan
+    // darhol yuborilsa, u ikkinchi modifikator tizimga yetib borishidan OLDIN
+    // kelib qoladi va til almashtirishni to'xtata olmaydi.
+    const ushort VK_MASK = 0xE8;
+
+    static void QueueMaskKey()
+    {
+        injectQueue.Enqueue(new INPUT[] {
+            Kb(VK_MASK, 0, 0),
+            Kb(VK_MASK, 0, KEYEVENTF_KEYUP)
+        });
         injectTimer.Start();
     }
 

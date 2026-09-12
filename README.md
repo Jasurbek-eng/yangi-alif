@@ -54,6 +54,7 @@ Fayl buzilmaganini `checksums.txt` orqali tekshirish mumkin:
 | `Ekran-rasm.ps1` | Dastur oynalarining suratini oladi (sayt/README uchun) |
 | `YangiAlif.ps1` / `.vbs` | Zaxira yo'l: Smart App Control yoqilgan kompyuterlar uchun |
 | `site/` | Yuklab olish sayti — pastga qarang |
+| `functions/` | Sayt uchun Cloudflare server funksiyalari (yuklamalar hisoblagichi, admin) |
 
 `YangiAlif.exe` va `YangiAlif.ico` — qurish natijalari, git'da saqlanmaydi.
 
@@ -71,6 +72,11 @@ Natija: `YangiAlif.exe` (o'zini o'rnatadigan bitta fayl). Shu bilan birga skript
 `site/downloads/` papkasidagi `.exe`, portable `.zip` va ularning SHA-256
 checksumlarini ham avtomatik yangilaydi — sayt har doim eng so'nggi build bilan
 sinxron turadi.
+
+**Versiya faqat bitta joyda o'zgartiriladi** — `YangiAlif.cs` dagi `AppVer`.
+Qurish skripti uni `AssemblyInfo.cs`, `YangiAlif.manifest` va saytdagi
+versiya yozuviga o'zi tarqatadi (avval bular qo'lda yozilib, bir-biridan
+ajralib qolgan edi).
 
 ---
 
@@ -97,9 +103,21 @@ ichidagi `og:url`/`og:image` meta teglari ham shunga mos yangilanishi kerak.
 
 Sayt necha marta yuklab olinganini ko'rsatadigan `site/admin/` sahifasi bor.
 Bu — statik saytga qo'shimcha, **Cloudflare Pages**'ga xos ishlaydi (bepul):
-har bir yuklab olish tugmasi bosilganda `site/functions/api/track.js`
+har bir yuklab olish tugmasi bosilganda `functions/api/track.js`
 chaqiriladi va anonim (IP saqlanmaydigan) yig'indi sonini bittaga oshiradi;
 `site/admin/` esa parol bilan himoyalangan holda shu sonlarni ko'rsatadi.
+
+> **Nega `functions/` repo ildizida, `site/` ichida emas?** Cloudflare
+> hujjatiga ko'ra `/functions` papkasi *"at the root of your Pages project
+> (and not in the static root)"* bo'lishi shart. "Build output directory"
+> `site` bo'lgani uchun Cloudflare funksiyalarni repo ildizidan qidiradi —
+> `site/functions` ichida ular umuman topilmaydi (va statik fayl bo'lib
+> hammaga ochiq ko'rinib qolardi).
+>
+> **Yuklab olish tugmalari** GitHub relizlariga ishora qiladi
+> (`releases/latest/download/...`) — `site/downloads/` git'ga kiritilmagan,
+> shuning uchun Cloudflare saytida u papka bo'sh bo'ladi. SHA-256 va hajm
+> ham GitHub API'dan olinadi, ya'ni doim yuklanadigan fayl bilan bir xil.
 
 **Bir martalik sozlash (Cloudflare Pages):**
 
@@ -118,7 +136,7 @@ chaqiriladi va anonim (IP saqlanmaydigan) yig'indi sonini bittaga oshiradi;
 
 **Eslatma:** Bu faqat Cloudflare Pages'da ishlaydi. GitHub Pages
 funksiyalarni umuman qo'llab-quvvatlamaydi; Netlify'da ishlashi uchun
-`site/functions/api/*.js` fayllari Netlify Functions formatiga
+`functions/api/*.js` fayllari Netlify Functions formatiga
 (`exports.handler = ...`) qayta yozilishi kerak bo'ladi. Boshqa
 hostinglarda `/admin/` ochiladi, lekin parol kiritganda "Serverga
 ulanib bo'lmadi" xabarini beradi — bu normal, shunchaki hisoblagich
@@ -153,6 +171,11 @@ Talab: Windows 10/11 (.NET Framework 4 ichida mavjud, alohida hech narsa kerak e
   tekshirmasdan ishlatilsa, buyruq in'ektsiyasiga ochiq bo'lardi — endi yo'l
   tirnoq (`"`) belgisi yoki noto'g'ri shakl uchun tekshiriladi va shubhali
   bo'lsa standart papkaga qaytiladi; `.bat` fayl nomi ham tasodifiy (GUID).
+  Skript papkani **butunlay** (`rd /s`) o'chirmaydi: faqat `YangiAlif.exe`
+  o'chiriladi, papka esa bo'sh qolsagina olib tashlanadi. O'rnatish
+  sehrgari ham ichida boshqa fayllar bor papkani qabul qilmaydi — alohida
+  `YangiAlif` papkasini taklif qiladi. Shunday qilib foydalanuvchining
+  boshqa fayllariga hech qachon tegilmaydi.
 - **Admin panel** (`/api/stats`): parol solishtirish **vaqt-hujumiga**
   (timing attack) chidamli usulda amalga oshiriladi, va bitta IP manzil
   15 daqiqada 8 martadan ortiq noto'g'ri parol kiritsa, vaqtincha

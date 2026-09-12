@@ -18,4 +18,4 @@
 #   .cs va .ps1  — UTF-8 BOM BILAN saqlanishi shart (ö, ğ, ş, ç uchun)
 #   .vbs         — BOM'SIZ bo'lishi shart, aks holda VBScript
 #                  "Invalid character" xatosini beradi
-#   site/*.html, site/assets/*.js — BOM'siz UTF-8
+#   site/*.html, site/assets/*.js, functions/*.js — BOM'siz UTF-8

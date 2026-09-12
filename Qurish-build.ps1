@@ -16,6 +16,26 @@ Add-Type -AssemblyName System.Drawing
 $csText = Get-Content (Join-Path $dir 'YangiAlif.cs') -Raw
 $AppVersion = if ($csText -match 'AppVer\s*=\s*"([^"]+)"') { $Matches[1] } else { '0.0' }
 
+# --- Versiyani BITTA manbadan (YangiAlif.cs dagi AppVer) boshqa fayllarga tarqatamiz ---
+# Avval versiya bir necha joyda qo'lda yozilardi va bir-biridan ajralib
+# qolardi (manifest 1.0.0.0, sayt v1.1, dastur 1.2). Endi faqat AppVer
+# o'zgartiriladi, qolganini skript o'zi moslaydi (kodlash — BOM — saqlanadi).
+$ver4 = ((@($AppVersion.Split('.')) + @('0', '0', '0', '0'))[0..3]) -join '.'
+function Sync-Version([string]$path, [string]$pattern, [string]$replacement) {
+    if (-not (Test-Path $path)) { return }
+    $bytes  = [System.IO.File]::ReadAllBytes($path)
+    $hasBom = ($bytes.Length -ge 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF)
+    $old = [System.IO.File]::ReadAllText($path, [System.Text.Encoding]::UTF8)
+    $new = [regex]::Replace($old, $pattern, $replacement)
+    if ($new -ne $old) {
+        [System.IO.File]::WriteAllText($path, $new, (New-Object System.Text.UTF8Encoding($hasBom)))
+        Write-Host "   Versiya $AppVersion ga moslandi: $(Split-Path $path -Leaf)" -ForegroundColor DarkGray
+    }
+}
+Sync-Version (Join-Path $dir 'AssemblyInfo.cs')    'Assembly(File)?Version\("[^"]*"\)' ('Assembly$1Version("' + $ver4 + '")')
+Sync-Version (Join-Path $dir 'YangiAlif.manifest') '(<assemblyIdentity version=")[^"]*(")' ('${1}' + $ver4 + '${2}')
+Sync-Version (Join-Path $dir 'site\index.html')    '(<span id="appVersion">)v[^<]*(</span>)' ('${1}v' + $AppVersion + '${2}')
+
 # Ishlab turgan nusxa faylni band qilib turmasligi uchun to'xtatamiz
 Get-Process YangiAlif -ErrorAction SilentlyContinue | Stop-Process -Force
 Start-Sleep -Milliseconds 700
@@ -213,10 +233,15 @@ if (Test-Path (Join-Path $dir 'site\index.html')) {
     }
 
     $stage = Join-Path ([System.IO.Path]::GetTempPath()) 'YangiAlif-portable-build'
+    # Oldingi qurishdan qolgan eski fayllar zip'ga tushib qolmasin
+    if (Test-Path $stage) { Remove-Item $stage -Recurse -Force }
     New-Item -ItemType Directory -Path $stage -Force | Out-Null
     Copy-Item (Join-Path $dir 'YangiAlif.cs')  $stage -Force
     Copy-Item (Join-Path $dir 'YangiAlif.ps1') $stage -Force
     Copy-Item (Join-Path $dir 'YangiAlif.vbs') $stage -Force
+    # Logotip: portable rejimda ham oynalar va tray'da logotip chiqishi uchun.
+    # (YangiAlif.ps1 WorkDir'ni o'z papkasiga qo'yadi, dastur Logo.png'ni shu yerdan o'qiydi.)
+    if ($hasLogo) { Copy-Item $logoFile $stage -Force }
     Set-Content -Path (Join-Path $stage 'OQI-BOSHLA.txt') -Encoding UTF8 -Value @"
 YANGI ALIF -- portable (skript) versiya
 ========================================
@@ -227,8 +252,8 @@ imzosiz .exe fayl UMUMAN yaratilmaydi -- dastur to'g'ridan-to'g'ri
 imzolangan powershell.exe ichida, xotirada ishga tushadi.
 
 QANDAY ISHLATISH?
-1. Bu 3 ta faylni (YangiAlif.cs, YangiAlif.ps1, YangiAlif.vbs)
-   BIR papkaga joylashtiring.
+1. Arxivdagi barcha fayllarni (YangiAlif.cs, YangiAlif.ps1,
+   YangiAlif.vbs, Logo.png) BIR papkaga chiqaring.
 2. YangiAlif.vbs faylini ikki marta bosing.
 
 Savol-taklif: jasurbekxasanov214@gmail.com | Telegram: @khasanov_jasur

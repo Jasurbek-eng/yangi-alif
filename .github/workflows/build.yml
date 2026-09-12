@@ -67,8 +67,17 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          $ErrorActionPreference = 'Continue'
           $tag = "${{ github.ref_name }}"
+          # Reliz hali yaratilmagan bo'lsa (masalan faqat teg push qilingan),
+          # avval yaratamiz — aks holda "release not found" bilan yiqiladi.
+          gh release view $tag *> $null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $tag --title "Yangi Alif $tag" --notes "Avtomatik qurilgan reliz. Tafsilotlar: README."
+            if ($LASTEXITCODE -ne 0) { throw "Relizni yaratib bo'lmadi" }
+          }
           gh release upload $tag `
             site/downloads/YangiAlif.exe `
             site/downloads/YangiAlif-portable.zip `
             site/downloads/checksums.txt --clobber
+          if ($LASTEXITCODE -ne 0) { throw "Fayllarni relizga yuklab bo'lmadi" }
