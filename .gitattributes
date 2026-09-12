@@ -1,0 +1,21 @@
+# ============================================================
+#  Yangi Alif — fayl turlari va qator oxirlari
+#
+#  Bu Windows loyihasi: matn fayllar ish papkasida CRLF bo'ladi.
+#  Ikkilik (binary) fayllar esa git tomonidan UMUMAN o'zgartirilmaydi —
+#  busiz noto'g'ri sozlangan kompyuterda rasm yoki .exe buzilishi mumkin.
+# ============================================================
+
+*           text=auto eol=crlf
+
+# --- Ikkilik fayllar: hech qachon tegilmasin ---
+*.png       binary
+*.ico       binary
+*.exe       binary
+*.zip       binary
+
+# ESLATMA (kodировка — git buni boshqarmaydi, qo'lda saqlanadi):
+#   .cs va .ps1  — UTF-8 BOM BILAN saqlanishi shart (ö, ğ, ş, ç uchun)
+#   .vbs         — BOM'SIZ bo'lishi shart, aks holda VBScript
+#                  "Invalid character" xatosini beradi
+#   site/*.html, site/assets/*.js — BOM'siz UTF-8

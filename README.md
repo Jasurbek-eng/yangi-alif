@@ -160,6 +160,16 @@ versiya chiqarganda:
    yoki Microsoft Store orqali tarqatish (yuqorida muhokama qilingan) —
    bular saytingiz buzilgan taqdirda ham imzoni soxtalashtirib bo'lmaydi.
 
+**Checksum nimani isbotlaydi, nimani yo'q — aniq bo'lsin:**
+SHA-256 faqat "yuklab olgan faylingiz muallif e'lon qilgan fayl bilan
+bir xil" ekanini ko'rsatadi. U "bu fayl shu manba koddan qurilgan"
+degani EMAS. Sababi: `.NET Framework`ning ichidagi kompilyator (C# 5,
+`csc.exe`) **takrorlanuvchi (deterministic) build**ni qo'llab-quvvatlamaydi —
+har safar qurilganda faylga kompilyatsiya vaqti va yangi ichki GUID
+yoziladi, shuning uchun bir xil koddan ikki xil `.exe` chiqadi
+(tekshirildi: ikki build'ning SHA-256'lari har xil). Ya'ni boshqa odam
+qayta qurib, sizning `.exe`ingiz bilan bayt-ma-bayt solishtira olmaydi.
+
 ---
 
 ## Maxfiylik
