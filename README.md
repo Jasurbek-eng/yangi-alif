@@ -13,6 +13,25 @@ Siz yozayotgan paytda harflarni avtomatik almashtiradi:
 
 Bosh harflar ham ishlaydi: `O' → Ö`, `Sh → Ş`, `Ch → Ç`
 
+### ⬇ Yuklab olish
+
+**[Eng so'nggi versiyani yuklab olish →](https://github.com/Jasurbek-eng/yangi-alif/releases/latest)**
+
+| Fayl | Kimga |
+|------|-------|
+| `YangiAlif.exe` | Ko'pchilik uchun — o'zi o'rnatiladi |
+| `YangiAlif-portable.zip` | Windows Smart App Control yoqilgan bo'lsa |
+
+Fayl buzilmaganini `checksums.txt` orqali tekshirish mumkin:
+`certutil -hashfile YangiAlif.exe SHA256`
+
+<img src="site/assets/oyna-qollanma.png" width="480" alt="Yangi Alif qo'llanma oynasi">
+
+> ⚠️ **Parol yozishdan oldin `Ctrl + Shift` bilan o'chirib qo'ying.**
+> Dastur Windows'ning klassik parol maydonlarini taniydi, lekin
+> brauzerdagi (Chrome, Firefox, Edge) parol maydonlarini texnik
+> jihatdan tanib bo'lmaydi — batafsil "Xavfsizlik" bo'limida.
+
 ---
 
 ## Ishlatish
@@ -32,6 +51,7 @@ Bosh harflar ham ishlaydi: `O' → Ö`, `Sh → Ş`, `Ch → Ç`
 | `YangiAlif.manifest` | DPI, Windows 10/11, administrator huquqi |
 | `Logo.png` | Logotip (dastur ichiga joylashtiriladi) |
 | `Qurish-build.ps1` | **Qurish skripti** — ikonka va `.exe` yasaydi |
+| `Ekran-rasm.ps1` | Dastur oynalarining suratini oladi (sayt/README uchun) |
 | `YangiAlif.ps1` / `.vbs` | Zaxira yo'l: Smart App Control yoqilgan kompyuterlar uchun |
 | `site/` | Yuklab olish sayti — pastga qarang |
 

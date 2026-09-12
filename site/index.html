@@ -322,6 +322,9 @@
     color:#D7E7CB; font-size:13.5px; line-height:1.6;
   }
   .priv-note a{color:#fff; text-decoration:underline;}
+  /* Qorong'i kartochka ichidagi havolalar: standart var(--brand) rangi
+     yorug' rejimda to'q yashil bo'lib, to'q yashil fonda o'qilmay qoladi. */
+  .privacy-list a{color:#fff; text-decoration:underline;}
 
   /* ---------- Download ---------- */
   .downloads{display:grid; grid-template-columns:1.15fr .85fr; gap:22px;}
@@ -339,6 +342,16 @@
     margin-top:18px; padding:12px 14px; border-radius:10px; background:var(--warn-bg);
     border:1px solid var(--warn-border); color:var(--warn-text); font-size:13px;
   }
+  /* ---------- Dastur oynalari (skrinshotlar) ---------- */
+  .shots{display:grid; grid-template-columns:1fr 1fr; gap:28px; align-items:start;}
+  .shots figure{margin:0; text-align:center;}
+  .shots img{
+    width:100%; height:auto; border-radius:12px; border:1px solid var(--border);
+    box-shadow:var(--shadow-soft); background:var(--surface);
+  }
+  .shots figcaption{margin-top:14px; font-size:13.5px; color:var(--muted);}
+
+  .dl-alt{text-align:center; margin:26px 0 0; font-size:13.5px; color:var(--muted);}
   .hash-row{
     display:flex; align-items:center; gap:8px; margin-top:14px; padding-top:14px;
     border-top:1px dashed var(--border); flex-wrap:wrap;
@@ -414,6 +427,7 @@
        shunga moslab oldindan belgilanadi, aks holda yozuv animatsiyasi
        davomida quti "sakrab", ostidagi butun sahifa siljib turadi. */
     .demo-body{min-height:122px;}
+    .shots{grid-template-columns:1fr; gap:32px;}
   }
 
   /* Tor telefonlarda sarlavhaga brend + tema tugmasi + "Yuklab olish" +
@@ -562,6 +576,25 @@
   </div>
 </section>
 
+<section id="korinishi">
+  <div class="wrap">
+    <div class="section-head">
+      <h2>Dastur qanday ko'rinadi</h2>
+      <p>Katta oynalar yo'q — ishlaganda soat yonida kichik belgi bo'lib turadi, xolos.</p>
+    </div>
+    <div class="shots">
+      <figure>
+        <img src="assets/oyna-qollanma.png" alt="Yangi Alif qo'llanma oynasi: almashtirish qoidalari va 4 qadamli yo'riqnoma" loading="lazy" width="576" height="675">
+        <figcaption>Birinchi ochilganda — qisqa qo'llanma</figcaption>
+      </figure>
+      <figure>
+        <img src="assets/oyna-sozlamalar.png" alt="Yangi Alif sozlamalar oynasi: qoidalar, ishga tushish va istisnolar" loading="lazy" width="536" height="635">
+        <figcaption>Sozlamalar — istalgan qoidani o'chirib qo'yish mumkin</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
 <section id="maxfiylik">
   <div class="wrap">
     <div class="privacy">
@@ -575,6 +608,7 @@
           <li><span class="check">✓</span> Faylga yozilmaydi, hech kimga yuborilmaydi</li>
           <li><span class="check">✓</span> Dastur internetga umuman ulanmaydi</li>
           <li><span class="check">✓</span> Hisob yaratish, ro'yxatdan o'tish shart emas</li>
+          <li><span class="check">✓</span> Kodi ochiq — <a href="https://github.com/Jasurbek-eng/yangi-alif">o'zingiz tekshirib ko'ring</a></li>
         </ul>
         <p class="priv-note">Parollar haqida: dastur Windows'ning oddiy parol maydonlarida o'zi to'xtaydi, lekin <b>brauzerdagi</b> parol maydonlarini texnik jihatdan tanib bo'lmaydi. Parol yozishdan oldin <b>Ctrl + Shift</b> bilan o'chirib qo'ying — <a href="#faq">batafsil</a>.</p>
       </div>
@@ -624,6 +658,7 @@
         </div>
       </div>
     </div>
+    <p class="dl-alt">Xohlasangiz, xuddi shu fayllarni <a href="https://github.com/Jasurbek-eng/yangi-alif/releases/latest">GitHub'dan</a> ham yuklab olishingiz mumkin — u yerda barcha versiyalar saqlanadi.</p>
   </div>
 </section>
 
@@ -691,6 +726,7 @@
       <a href="mailto:jasurbekxasanov214@gmail.com">✉ Email</a>
       <a href="https://t.me/khasanov_jasur">✈ Telegram</a>
       <a href="https://instagram.com/khasanov__jasur">📷 Instagram</a>
+      <a href="https://github.com/Jasurbek-eng/yangi-alif">⌨ GitHub (kodi)</a>
     </div>
   </div>
   <div class="wrap foot-bottom">© Xasanov Jasurbek. Barcha huquqlar himoyalangan.</div>
