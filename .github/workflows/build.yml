@@ -1,0 +1,74 @@
+# ============================================================
+#  Yangi Alif — avtomatik qurish (CI)
+#
+#  Nima uchun kerak:
+#   1) Har o'zgarishdan keyin kod hali ham qurilishini tekshiradi
+#   2) SignPath (bepul code signing) aynan CI qurgan faylni imzolaydi —
+#      qo'lda yuklangan faylni emas. Ya'ni "bu .exe aynan shu ochiq
+#      koddan qurilgan" degani kafolatlanadi
+#   3) v* tegi qo'yilganda fayllarni relizga o'zi biriktiradi
+#
+#  Uchinchi tomon action'lari ATAYLAB ishlatilmadi — faqat GitHub'ning
+#  o'z vositalari (ta'minot zanjiri xavfini kamaytirish uchun).
+# ============================================================
+name: Qurish
+
+on:
+  push:
+    branches: [master]
+    tags: ['v*']
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: write      # reliz fayllarini biriktirish uchun
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Kodni olish
+        uses: actions/checkout@v4
+
+      - name: Qurish
+        shell: powershell
+        run: .\Qurish-build.ps1
+
+      - name: Natijani tekshirish
+        shell: powershell
+        run: |
+          $exe = "site\downloads\YangiAlif.exe"
+          if (-not (Test-Path $exe)) { throw ".exe yaratilmadi" }
+          $kb = [math]::Round((Get-Item $exe).Length / 1KB, 1)
+          Write-Host "YangiAlif.exe: $kb KB"
+          # Versiya manba koddagi bilan mos kelishini tekshiramiz
+          $ver = (Get-Item $exe).VersionInfo.FileVersion
+          $cs  = Get-Content YangiAlif.cs -Raw
+          if ($cs -match 'AppVer\s*=\s*"([^"]+)"') { $want = $Matches[1] } else { throw "AppVer topilmadi" }
+          Write-Host "Fayl versiyasi: $ver  |  Koddagi AppVer: $want"
+          if (-not $ver.StartsWith($want)) { throw "Versiyalar mos emas: $ver != $want" }
+          Get-Content site\downloads\checksums.txt
+
+      - name: Fayllarni saqlash
+        uses: actions/upload-artifact@v4
+        with:
+          name: YangiAlif
+          path: |
+            site/downloads/YangiAlif.exe
+            site/downloads/YangiAlif-portable.zip
+            site/downloads/checksums.txt
+          retention-days: 90
+
+      - name: Relizga biriktirish (faqat v* tegida)
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "${{ github.ref_name }}"
+          gh release upload $tag `
+            site/downloads/YangiAlif.exe `
+            site/downloads/YangiAlif-portable.zip `
+            site/downloads/checksums.txt --clobber
